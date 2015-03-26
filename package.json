@@ -1,0 +1,33 @@
+{
+  "name": "coffee-tracer",
+  "description": "CoffeeScript instrumentation for a visual debugger",
+  "version": "0.0.1",
+  "main": "./lib/index",
+  "scripts": {
+    "prepublish": "cake build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jeremy Ruten <jeremy.ruten@gmail.com>",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://raw.github.com/yjerem/coffee-tracer/master/LICENSE"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yjerem/coffee-tracer.git"
+  },
+  "bin": {
+    "coffee-tracer": "./bin/coffee-tracer"
+  },
+  "directories": {
+    "lib": "./lib"
+  },
+  "dependencies": {
+    "coffee-script": "^1.9.1"
+  },
+  "devDependencies": {
+    "mocha": "^2.1.0"
+  }
+}
