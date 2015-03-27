@@ -6,100 +6,90 @@ This is the pre-project for my [GSoC 2015](https://www.google-melange.com/gsoc/h
 
 ## Install
 
-It's published to npm, so just type:
-
     $ npm install coffee-tracer
+
+## Build
+
+    $ cake build
+    $ cake test
 
 ## Usage
 
-For now, `coffee-tracer` simply exposes a single `instrument` function, which takes a filename and file contents as arguments, instruments the given CoffeeScript code, and returns the compiled JavaScript as a string. For each line that is executed in the outputted JS, `ide.trace(event)` will be called, where event is an object of the form `{ line: ..., column: ..., type: ... }`, `type` being either `"enter"` or `"leave"` or `""`, depending on whether a function is being entered or left. For now, it's up to the user of the library to implement `ide.trace()`.
+To use as a library:
+
+    {instrument} = require "coffee-tracer"
+
+    js = instrument fileName, fileContents, options
+
+For now, `coffee-tracer` simply exposes a single `instrument` function, which takes a filename and file contents as arguments, instruments the given CoffeeScript code, and returns the compiled JavaScript as a string. For each line that is executed in the outputted JS, `ide.trace(event)` will be called, where `event` is an object of the form `{ location: { first_line: .., first_column: .., last_line: .., last_column: .. }, type: .. }`, `type` being either `"enter"` or `"leave"` or `""`, depending on whether a function is being entered or left. For now, it's up to the user of the library to implement `ide.trace()`.
 
 `instrument` can take some options as its third argument:
 
-* `traceFunc`: the function that will be called for each event (default: `ide.trace`).
+* `traceFunc`: the function that will be called for each event (default: `"ide.trace"`).
 * `ast`: if true, returns the instrumented AST instead of the compiled JS.
 
 ## Example
 
 I've included a little binary for testing/showing-off purposes that lets you either instrument a CoffeeScript file and see the JavaScript or AST output, or see the results of an actual trace of a CoffeeScript program. Here are the three commands in action:
 
-    $ cat test.coffee
-    square = (x) -> x * x
+    $ coffee-tracer trace test/traces/inheritance.coffee
+          1:1-6:1
+          2:3-6:1
+          7:1-10:1
+          8:3-10:1
+          11:1-11:21
+    enter 2:16-2:25
+    leave 2:16-2:25
+          12:1-12:10
+    enter 8:9-10:1
+          9:5-9:31
+    enter 4:9-6:1
+          5:5-5:36
+    leave 4:9-6:1
+    leave 8:9-10:1
 
-    y = 2
-    for _ in [1..5]
-      y = square y
-
-    # print it out
-    console.log y
-
-    $ coffee test.coffee
-    4294967296
-
-    $ coffee-tracer trace test.coffee
-    4294967296
-    [ { line: 1, column: 0 },
-      { line: 3, column: 0 },
-      { line: 4, column: 0 },
-      { line: 5, column: 2 },
-      { line: 1, column: 16 },
-      { line: 5, column: 2 },
-      { line: 1, column: 16 },
-      { line: 5, column: 2 },
-      { line: 1, column: 16 },
-      { line: 5, column: 2 },
-      { line: 1, column: 16 },
-      { line: 5, column: 2 },
-      { line: 1, column: 16 },
-      { line: 8, column: 0 } ]
-
-    $ coffee-tracer instrument test.coffee
+    $ coffee-tracer instrument test/traces/while_loop.coffee
     (function() {
-      var _, i, square, y;
+      var i;
 
       ide.trace({
-        line: 1,
-        column: 0
+        location: {
+          first_line: 1,
+          first_column: 1,
+          last_line: 1,
+          last_column: 5
+        },
+        type: ''
       });
 
-      square = function(x) {
+      i = 0;
+
+      ide.trace({
+        location: {
+          first_line: 2,
+          first_column: 1,
+          last_line: 2,
+          last_column: 11
+        },
+        type: ''
+      });
+
+      while (i < 3) {
         ide.trace({
-          line: 1,
-          column: 16
+          location: {
+            first_line: 3,
+            first_column: 3,
+            last_line: 3,
+            last_column: 5
+          },
+          type: ''
         });
-        return x * x;
-      };
-
-      ide.trace({
-        line: 3,
-        column: 0
-      });
-
-      y = 2;
-
-      ide.trace({
-        line: 4,
-        column: 0
-      });
-
-      for (_ = i = 1; i <= 5; _ = ++i) {
-        ide.trace({
-          line: 5,
-          column: 2
-        });
-        y = square(y);
+        i++;
       }
-
-      ide.trace({
-        line: 8,
-        column: 0
-      });
-
-      console.log(y);
 
     }).call(this);
 
-    $ coffee-tracer ast test.coffee
+    $ coffee-tracer ast test/traces/simple.coffee
     Block
       Block
         Call
@@ -108,31 +98,27 @@ I've included a little binary for testing/showing-off purposes that lets you eit
           Value
             Obj
               Assign
-                Value "line"
-                Value "1"
-              Assign
-                Value "column"
-                Value "0"
-      Assign
-        Value "square"
-        Code
-          Param "x"
-          Block
-            Block
-              Call
-                Value "ide"
-                  Access "trace"
+                Value "location"
                 Value
                   Obj
                     Assign
-                      Value "line"
+                      Value "first_line"
                       Value "1"
                     Assign
-                      Value "column"
-                      Value "16"
-            Op *
-              Value "x"
-              Value "x"
+                      Value "first_column"
+                      Value "1"
+                    Assign
+                      Value "last_line"
+                      Value "1"
+                    Assign
+                      Value "last_column"
+                      Value "5"
+              Assign
+                Value "type"
+                Value "''"
+      Assign
+        Value "x"
+        Value "3"
       Block
         Call
           Value "ide"
@@ -140,70 +126,39 @@ I've included a little binary for testing/showing-off purposes that lets you eit
           Value
             Obj
               Assign
-                Value "line"
-                Value "3"
+                Value "location"
+                Value
+                  Obj
+                    Assign
+                      Value "first_line"
+                      Value "2"
+                    Assign
+                      Value "first_column"
+                      Value "1"
+                    Assign
+                      Value "last_line"
+                      Value "2"
+                    Assign
+                      Value "last_column"
+                      Value "9"
               Assign
-                Value "column"
-                Value "0"
+                Value "type"
+                Value "''"
       Assign
         Value "y"
-        Value "2"
-      Block
-        Call
-          Value "ide"
-            Access "trace"
-          Value
-            Obj
-              Assign
-                Value "line"
-                Value "4"
-              Assign
-                Value "column"
-                Value "0"
-      For
-        Block
-          Block
-            Call
-              Value "ide"
-                Access "trace"
-              Value
-                Obj
-                  Assign
-                    Value "line"
-                    Value "5"
-                  Assign
-                    Value "column"
-                    Value "2"
-          Assign
-            Value "y"
-            Call
-              Value "square"
-              Value "y"
-        Value
-          Range
-            Value "1"
-            Value "5"
-      Block
-        Call
-          Value "ide"
-            Access "trace"
-          Value
-            Obj
-              Assign
-                Value "line"
-                Value "8"
-              Assign
-                Value "column"
-                Value "0"
-      Call
-        Value "console"
-          Access "log"
-        Value "y"
+        Op *
+          Value "x"
+          Value "4"
 
-## TODO
+## Todo
 
-By the proposal deadline I will:
-
-* Recognize "Enter" and "Leave" events in the trace
-* Write tests
+* Test more than the results of traces. In particular, test that the AST
+  manipulations don't change anything about the behaviour of the input program.
+* Figure out how to test async stuff (the test framework needs to wait for the
+  async stuff to complete before it examines the events array, somehow).
+* Allow a blacklist of node types that shouldn't be instrumented to be
+  specified (`Parens` nodes can really pollute the trace).
+* Maybe add a new event type for when exceptions are thrown (currently the
+  trace shows a function being entered but not left).
+* Eventually, track program state like values of variables.
 

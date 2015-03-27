@@ -32,7 +32,12 @@ for traceFile in traceFiles
     ide:
       events: [],
       trace: (event) -> sandbox.ide.events.push(event)
-  vm.runInContext(js, vm.createContext(sandbox))
+  options =
+    filename: traceFile,
+    timeout: 5000
+  m = require "module"
+  wrapped = vm.runInContext(m.wrap(js), vm.createContext(sandbox), options)
+  wrapped(exports, require, module, traceFile, tracesDir)
 
   # Find the expected line numbers of the trace.
   matches = code.match /^# Expected: (.+)$/m

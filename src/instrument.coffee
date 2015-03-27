@@ -7,30 +7,40 @@ class InstrumentError extends Error
     Error.call this
     Error.captureStackTrace this, arguments.callee
 
-fixLocationData = (instrumentedLine, lineNum) ->
+# Sets the line number of the given instrumented node, and sets it recursively
+# on each child.
+fixLocationData = (instrumentedNode, lineNum) ->
   doIt = (node) ->
     node.locationData =
-      first_line: lineNum - 1
+      first_line: lineNum
       first_column: 0
-      last_line: lineNum - 1
+      last_line: lineNum
       last_column: 0
 
-  doIt instrumentedLine
-  instrumentedLine.eachChild doIt
+  doIt instrumentedNode
+  instrumentedNode.eachChild doIt
 
-createInstrumentedLine = (traceFunc, locationData, eventType) ->
+# Creates an instrumented node that calls the trace function, passing in the
+# event object.
+createInstrumentedNode = (traceFunc, locationData, eventType) ->
+  # Give the line and column numbers as 1-indexed values, instead of 0-indexed.
   locationObj = "{ first_line: #{locationData.first_line + 1},"
-  locationObj += " first_column: #{locationData.first_column},"
+  locationObj += " first_column: #{locationData.first_column + 1},"
   locationObj += " last_line: #{locationData.last_line + 1},"
-  locationObj += " last_column: #{locationData.last_column} }"
+  locationObj += " last_column: #{locationData.last_column + 1} }"
 
-  instrumentedLine =
+  # Create the node from a string of CoffeeScript.
+  instrumentedNode =
     coffeeScript.nodes("#{traceFunc}({ location: #{locationObj}, type: '#{eventType}' })")
 
-  fixLocationData(instrumentedLine, locationData.first_line + 1)
+  # Set the line number of the node and its children to the line number of the
+  # code it corresponds to.
+  fixLocationData(instrumentedNode, locationData.first_line)
 
-  instrumentedLine
+  instrumentedNode
 
+# Returns a unique name to use as a temporary variable, by appending a number
+# to the given name until it gets a string that isn't in `used`.
 temporaryVariable = (name, used) ->
   index = 0
   loop
@@ -38,12 +48,17 @@ temporaryVariable = (name, used) ->
     return curName unless curName in used
     index++
 
+# Instruments some CoffeeScript code, compiles to JavaScript, and returns the
+# JavaScript code.
+#
 # Options:
 #   traceFunc: the name of the function to call and pass events into (default: "ide.trace")
-#   ast: if true, returns the instrumented AST instead of compiling it
+#   ast: if true, returns the instrumented AST instead of compiling
+#
 exports.instrument = (filename, code, options = {}) ->
   traceFunc = options.traceFunc ? "ide.trace"
 
+  # Parse the code to get an AST.
   try
     tokens = coffeeScript.tokens code, {}
 
@@ -65,47 +80,54 @@ exports.instrument = (filename, code, options = {}) ->
   instrumentTree = (node, nodeIndex=null, parent=null, inCode=null) ->
     # Keep track of which Code node we are currently in. A Code is a function
     # definition, and we need the Code's location data for 'leave' events that
-    # trigger with each Return statement.
+    # trigger on Return statements.
     inCode = node if nodeType(node) is "Code"
 
+    # Instrument children of Blocks.
     if nodeType(node) is "Block"
       children = node.expressions
       childIndex = 0
       while childIndex < children.length
         expression = children[childIndex]
 
+        # Skip Comments and nodes that we have spliced in ourselves.
         unless expression.doNotInstrument or nodeType(expression) is "Comment"
-          instrumentedLine = createInstrumentedLine(traceFunc, expression.locationData, "")
+          # Instrument this line with a normal event.
+          instrumentedNode = createInstrumentedNode(traceFunc, expression.locationData, "")
 
-          children.splice(childIndex, 0, instrumentedLine)
+          # Insert it before the node it corresponds to, and correct the childIndex.
+          children.splice(childIndex, 0, instrumentedNode)
           childIndex++
 
+          # Recursively instrument the children of this node.
           instrumentTree(expression, childIndex, node, inCode)
 
         childIndex++
 
+      # If this is the outer-most Block of a function definition (a Code node),
+      # then we need to have an "enter" event trigger at the top of the function,
+      # and a "leave" event trigger at the bottom.
       if nodeType(parent) is "Code"
-        # The enter event is easy, just stick it at the top of the function body.
-        children.splice(0, 0, createInstrumentedLine(traceFunc, parent.locationData, "enter"))
+        # The "enter" event is easy, just stick it at the top of the function body.
+        children.splice(0, 0, createInstrumentedNode(traceFunc, parent.locationData, "enter"))
 
-        # The leave event is a lot more complicated. It has to trigger right
-        # before any return statements in the function, or at the end of the
+        # The "leave" event is a lot more complicated. It has to trigger right
+        # before any return statements in the function, and at the end of the
         # function in the case of an implicit return.
         #
-        # Furthermore, to get enter and leave events in the right order, we
-        # need to make sure the expression whose value is being returned is
-        # evaluated before the instrumented line. So we need to assign the
-        # returned expression to a temporary variable, do the instrumented
-        # line, then return the temporary variable.
+        # Furthermore, to get "enter" and "leave" events in the right order, we
+        # need to make sure the expression being returned is evaluated before
+        # the "leave" event is triggered. So we need to assign the returned
+        # expression to a temporary variable, trigger the event, then return
+        # the temporary variable.
         if children.length == 1
-          # If the function body was empty, add the instrumented line and then
+          # If the function body was empty, add the instrumented node and then
           # make "undefined" the return value of the function.
-          children.splice(1, 0, createInstrumentedLine(traceFunc, parent.locationData, "leave"))
-
-          # coffeeScript.nodes will return a Block(Value(Undefined())), we just
-          # want Value(Undefined()), so unwrap it from the Block.
+          children.splice(1, 0, createInstrumentedNode(traceFunc, parent.locationData, "leave"))
           children.splice(2, 0, makeUndefinedNode())
         else
+          # Get the last expression, which is implicitly returned (unless it's
+          # a Return statement).
           lastExpr = children[children.length - 1]
 
           # Don't have to do anything if it's an explicit Return, we'll handle
@@ -123,8 +145,8 @@ exports.instrument = (filename, code, options = {}) ->
             # Replace the last expression in the function with the Assign.
             children.splice(children.length - 1, 1, assignNode)
 
-            # Add the instrumented line for the 'leave' event after the Assign.
-            children.splice(children.length, 0, createInstrumentedLine(traceFunc, parent.locationData, "leave"))
+            # Add the instrumented node for the 'leave' event after the Assign.
+            children.splice(children.length, 0, createInstrumentedNode(traceFunc, parent.locationData, "leave"))
 
             # Add the temporary variable as the last expression of the function.
             children.splice(children.length, 0, coffeeScript.nodes(tempVariableName).expressions[0])
@@ -150,37 +172,35 @@ exports.instrument = (filename, code, options = {}) ->
         # Replace the Return node with the Assign.
         parent.expressions.splice(nodeIndex, 1, assignNode)
 
-        # Add the instrumented line for the 'leave' event after the Assign.
-        parent.expressions.splice(nodeIndex + 1, 0, createInstrumentedLine(traceFunc, inCode.locationData, "leave"))
+        # Add the instrumented node for the 'leave' event after the Assign.
+        parent.expressions.splice(nodeIndex + 1, 0, createInstrumentedNode(traceFunc, inCode.locationData, "leave"))
 
         # Add a new Return node that returns the temporary variable after the
         # instrumented line.
         parent.expressions.splice(nodeIndex + 2, 0, makeReturnNode(tempVariableName))
 
-        # Mark the three nodes we just added so that they are not instrumented
+        # Mark the three nodes we just added so that they won't be instrumented
         # themselves.
         parent.expressions[nodeIndex].doNotInstrument = true
         parent.expressions[nodeIndex + 1].doNotInstrument = true
         parent.expressions[nodeIndex + 2].doNotInstrument = true
 
-      # coffee-coverage does this, because chaining "produces code that's
-      # harder to instrument".
-      # TODO: figure out if this is actually needed for what we're doing.
-      #       test/traces/if_chain.coffee still passes when this is commented out.
-      if nodeType(node) is "If"
-        node.isChain = false
-
+      # Recursively instrument each child of this node.
       node.eachChild (child) =>
         instrumentTree(child, null, node, inCode)
 
+  # Instrument the whole AST.
   instrumentTree ast
 
+  # If caller just wants the AST, return it now.
   return ast if options.ast
 
+  # Compile the instrumented AST to JavaScript.
   try
     js = ast.compile {}
   catch err
     throw new InstrumentError("Could not compile #{filename} after instrumenting: #{err.stack}")
 
+  # Return the JavaScript.
   return js
 

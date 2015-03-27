@@ -1,4 +1,7 @@
+# Entry point for the coffee-tracer binary.
+
 fs = require "fs"
+path = require "path"
 vm = require "vm"
 
 {instrument} = require "./instrument"
@@ -22,15 +25,23 @@ exports.main = (args) ->
     else if command is "trace"
       js = instrument infile, code
 
+      # Execute instrumented code in a VM, collecting the events in sandbox.ide.events.
       sandbox =
         ide:
           events: [],
           trace: (event) -> sandbox.ide.events.push(event)
         console: console
+      options =
+        filename: path.basename(infile),
+      m = require "module"
+      wrapped = vm.runInContext(m.wrap(js), vm.createContext(sandbox), options)
+      wrapped(exports, require, module, path.basename(infile), path.dirname(infile))
 
-      vm.runInContext(js, vm.createContext(sandbox))
-
-      console.log sandbox.ide.events
+      # Pretty-print the events.
+      for event in sandbox.ide.events
+        loc = event.location
+        type = if event.type == "" then "     " else event.type
+        console.log "#{type} #{loc.first_line}:#{loc.first_column}-#{loc.last_line}:#{loc.last_column}"
     else if command is "ast"
       ast = instrument infile, code, ast: yes
       console.log ast.toString().trim()
