@@ -18,7 +18,12 @@ fixLocationData = (instrumentedLine, lineNum) ->
   doIt instrumentedLine
   instrumentedLine.eachChild doIt
 
-exports.instrument = (filename, code) ->
+# Options:
+#   traceFunc: the name of the function to call and pass events into (default: "ide.trace")
+#   ast: if true, returns the instrumented AST instead of compiling it
+exports.instrument = (filename, code, options = {}) ->
+  traceFunc = options.traceFunc ? "ide.trace"
+
   try
     tokens = coffeeScript.tokens code, {}
     ast = coffeeScript.nodes tokens
@@ -36,7 +41,7 @@ exports.instrument = (filename, code) ->
 
         unless nodeType(expression) is "Comment"
           instrumentedLine =
-            coffeeScript.nodes("ide.trace({line: #{lineNum}, column: #{colNum}})")
+            coffeeScript.nodes("#{traceFunc}({line: #{lineNum}, column: #{colNum}})")
 
           fixLocationData instrumentedLine, lineNum
 
@@ -55,6 +60,8 @@ exports.instrument = (filename, code) ->
       node.eachChild (child) => instrumentTree(child, depth + 1)
 
   instrumentTree ast
+
+  return ast if options.ast
 
   try
     js = ast.compile {}
