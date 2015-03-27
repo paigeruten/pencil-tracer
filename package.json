@@ -25,6 +25,7 @@
     "lib": "./lib"
   },
   "dependencies": {
-    "coffee-script": "^1.9.1"
+    "coffee-script": "^1.9.1",
+    "colors": "^1.0.3"
   }
 }

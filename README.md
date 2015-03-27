@@ -30,7 +30,11 @@ For now, `coffee-tracer` simply exposes a single `instrument` function, which ta
 
 ## Example
 
-I've included a little binary for testing/showing-off purposes that lets you either instrument a CoffeeScript file and see the JavaScript or AST output, or see the results of an actual trace of a CoffeeScript program. Here are the three commands in action:
+I've included a little binary for testing/showing-off purposes that lets you either instrument a CoffeeScript file and see the JavaScript or AST output, or see the results of an actual trace of a CoffeeScript program. The `animate` command gives you a nice flip-animation of the trace. It prints out the code, highlighting the part of the code that is currently executing. Code that is executing is highlighted in green, functions that are being entered are highlighted in orange, and functions that are being left are highlighted in red. Run it like this:
+
+    $ coffee-tracer animate test/traces/inheritance.coffee
+
+Here are the other three commands in action:
 
     $ coffee-tracer trace test/traces/inheritance.coffee
           1:1-6:1
