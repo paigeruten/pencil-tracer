@@ -1,7 +1,7 @@
 {
   "name": "coffee-tracer",
   "description": "CoffeeScript instrumentation for a visual debugger",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "main": "./lib/index",
   "scripts": {
     "prepublish": "cake build",
@@ -28,4 +28,3 @@
     "coffee-script": "^1.9.1"
   }
 }
-
