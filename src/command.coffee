@@ -12,6 +12,7 @@ printUsage = ->
   console.log "  where <command> is one of:"
   console.log "    'instrument'       outputs instrumented JavaScript"
   console.log "    'trace'            runs instrumented JS and outputs trace"
+  console.log "    'animate'          visualizes the trace with pretty colours"
   console.log "    'ast'              outputs instrumented AST"
   console.log "  and <infile> is the CoffeeScript program to instrument"
 
