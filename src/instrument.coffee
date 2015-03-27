@@ -18,6 +18,19 @@ fixLocationData = (instrumentedLine, lineNum) ->
   doIt instrumentedLine
   instrumentedLine.eachChild doIt
 
+createInstrumentedLine = (traceFunc, locationData, eventType) ->
+  locationObj = "{ first_line: #{locationData.first_line + 1},"
+  locationObj += " first_column: #{locationData.first_column},"
+  locationObj += " last_line: #{locationData.last_line + 1},"
+  locationObj += " last_column: #{locationData.last_column} }"
+
+  instrumentedLine =
+    coffeeScript.nodes("#{traceFunc}({ location: #{locationObj}, type: '#{eventType}' })")
+
+  fixLocationData(instrumentedLine, locationData.first_line + 1)
+
+  instrumentedLine
+
 # Options:
 #   traceFunc: the name of the function to call and pass events into (default: "ide.trace")
 #   ast: if true, returns the instrumented AST instead of compiling it
@@ -30,26 +43,25 @@ exports.instrument = (filename, code, options = {}) ->
   catch err
     throw new InstrumentError("Could not parse #{filename}: #{err.stack}")
 
-  instrumentTree = (node, depth=0) ->
+  instrumentTree = (node, parent=null, depth=0) ->
     if nodeType(node) is "Block"
       children = node.expressions
       childIndex = 0
       while childIndex < children.length
         expression = children[childIndex]
-        lineNum = expression.locationData.first_line + 1
-        colNum = expression.locationData.first_column
 
         unless nodeType(expression) is "Comment"
-          instrumentedLine =
-            coffeeScript.nodes("#{traceFunc}({line: #{lineNum}, column: #{colNum}})")
-
-          fixLocationData instrumentedLine, lineNum
+          instrumentedLine = createInstrumentedLine(traceFunc, expression.locationData, "")
 
           children.splice(childIndex, 0, instrumentedLine)
           childIndex++
 
-        instrumentTree expression, depth + 1
+        instrumentTree(expression, node, depth + 1)
         childIndex++
+
+      if nodeType(parent) is "Code"
+        children.splice(0, 0, createInstrumentedLine(traceFunc, parent.locationData, "enter"))
+        children.splice(children.length, 0, createInstrumentedLine(traceFunc, parent.locationData, "leave"))
     else
       # coffee-coverage does this, because chaining "produces code that's
       # harder to instrument".
@@ -57,7 +69,7 @@ exports.instrument = (filename, code, options = {}) ->
       if nodeType(node) is "If"
         node.isChain = false
 
-      node.eachChild (child) => instrumentTree(child, depth + 1)
+      node.eachChild (child) => instrumentTree(child, node, depth + 1)
 
   instrumentTree ast
 

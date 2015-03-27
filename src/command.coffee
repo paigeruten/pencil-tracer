@@ -22,14 +22,13 @@ exports.main = (args) ->
     else if command is "trace"
       js = instrument infile, code
 
-      Module = require "module"
       sandbox =
         ide:
           events: [],
           trace: (event) -> sandbox.ide.events.push(event)
         console: console
 
-      vm.runInContext(js, vm.createContext(sandbox));
+      vm.runInContext(js, vm.createContext(sandbox))
 
       console.log sandbox.ide.events
     else if command is "ast"
