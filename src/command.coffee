@@ -47,9 +47,10 @@ exports.main = (args) ->
       else if command is "animate"
         # Checks if the given line and column are inside the given location.
         withinLocation = (line, col, location) ->
-          (line > location.first_line and line < location.last_line) ||
-          (line == location.first_line and col >= location.first_column) ||
-          (line == location.last_line and col <= location.last_column)
+          (line > location.first_line and line < location.last_line) or
+          (line == location.first_line and line != location.last_line and col >= location.first_column) or
+          (line == location.last_line and line != location.first_line and col <= location.last_column) or
+          (line == location.first_line and line == location.last_line and col >= location.first_column and col <= location.last_column)
 
         # For each event, print the original program with the event's location
         # highlighted.
