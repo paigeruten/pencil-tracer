@@ -1,6 +1,6 @@
 {
-  "name": "coffee-tracer",
-  "description": "CoffeeScript instrumentation for a visual debugger",
+  "name": "pencil-tracer",
+  "description": "JavaScript/CoffeeScript instrumentation for a visual debugger",
   "version": "0.0.6",
   "main": "./lib/index",
   "scripts": {
@@ -11,15 +11,15 @@
   "licenses": [
     {
       "type": "MIT",
-      "url": "https://raw.github.com/yjerem/coffee-tracer/master/LICENSE"
+      "url": "https://raw.github.com/yjerem/pencil-tracer/master/LICENSE"
     }
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/yjerem/coffee-tracer.git"
+    "url": "https://github.com/yjerem/pencil-tracer.git"
   },
   "bin": {
-    "coffee-tracer": "./bin/coffee-tracer"
+    "pencil-tracer": "./bin/pencil-tracer"
   },
   "directories": {
     "lib": "./lib"

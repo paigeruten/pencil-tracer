@@ -1,4 +1,4 @@
-# Entry point for the coffee-tracer binary.
+# Entry point for the pencil-tracer binary.
 
 fs = require "fs"
 path = require "path"
@@ -8,7 +8,7 @@ colors = require "colors"
 {instrument} = require "./instrument"
 
 printUsage = ->
-  console.log "Usage: coffee-tracer <command> <infile>"
+  console.log "Usage: pencil-tracer <command> <infile>"
   console.log "  where <command> is one of:"
   console.log "    'instrument'       outputs instrumented JavaScript"
   console.log "    'trace'            runs instrumented JS and outputs trace"

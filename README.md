@@ -1,12 +1,12 @@
-# coffee-tracer
+# pencil-tracer
 
-`coffee-tracer` is a library that takes a CoffeeScript program as input, and outputs instrumented code that records a line-by-line trace of the program's execution when it runs. It borrows some code from [`coffee-coverage`](https://github.com/benbria/coffee-coverage), which also outputs instrumented CoffeeScript.
+`pencil-tracer` is a library that takes a CoffeeScript program as input, and outputs instrumented code that records a line-by-line trace of the program's execution when it runs. It borrows some code from [`coffee-coverage`](https://github.com/benbria/coffee-coverage), which also outputs instrumented CoffeeScript.
 
 This is the pre-project for my [GSoC 2015](https://www.google-melange.com/gsoc/homepage/google/gsoc2015) proposal. It is the first step in creating a better visual debugger for [Pencil Code](http://pencilcode.net/).
 
 ## Install
 
-    $ npm install coffee-tracer
+    $ npm install pencil-tracer
 
 ## Build
 
@@ -17,11 +17,11 @@ This is the pre-project for my [GSoC 2015](https://www.google-melange.com/gsoc/h
 
 To use as a library:
 
-    {instrument} = require "coffee-tracer"
+    {instrument} = require "pencil-tracer"
 
     js = instrument fileName, fileContents, options
 
-For now, `coffee-tracer` simply exposes a single `instrument` function, which takes a filename and file contents as arguments, instruments the given CoffeeScript code, and returns the compiled JavaScript as a string. For each line that is executed in the outputted JS, `ide.trace(event)` will be called, where `event` is an object of the form `{ location: { first_line: .., first_column: .., last_line: .., last_column: .. }, type: .. }`, `type` being either `"enter"` or `"leave"` or `""`, depending on whether a function is being entered or left. For now, it's up to the user of the library to implement `ide.trace()`.
+For now, `pencil-tracer` simply exposes a single `instrument` function, which takes a filename and file contents as arguments, instruments the given CoffeeScript code, and returns the compiled JavaScript as a string. For each line that is executed in the outputted JS, `ide.trace(event)` will be called, where `event` is an object of the form `{ location: { first_line: .., first_column: .., last_line: .., last_column: .. }, type: .. }`, `type` being either `"enter"` or `"leave"` or `""`, depending on whether a function is being entered or left. For now, it's up to the user of the library to implement `ide.trace()`.
 
 `instrument` can take some options as its third argument:
 
@@ -32,11 +32,11 @@ For now, `coffee-tracer` simply exposes a single `instrument` function, which ta
 
 I've included a little binary for testing/showing-off purposes that lets you either instrument a CoffeeScript file and see the JavaScript or AST output, or see the results of an actual trace of a CoffeeScript program. The `animate` command gives you a nice flip-animation of the trace. It prints out the code, highlighting the part of the code that is currently executing. Code that is executing is highlighted in green, functions that are being entered are highlighted in yellow, and functions that are being left are highlighted in red. Run it like this:
 
-    $ coffee-tracer animate test/traces/inheritance.coffee
+    $ pencil-tracer animate test/traces/inheritance.coffee
 
 Here are the other three commands in action:
 
-    $ coffee-tracer trace test/traces/inheritance.coffee
+    $ pencil-tracer trace test/traces/inheritance.coffee
           1:1-6:1
           2:3-6:1
           7:1-10:1
@@ -52,7 +52,7 @@ Here are the other three commands in action:
     leave 4:9-6:1
     leave 8:9-10:1
 
-    $ coffee-tracer instrument test/traces/while_loop.coffee
+    $ pencil-tracer instrument test/traces/while_loop.coffee
     (function() {
       var i;
 
@@ -93,7 +93,7 @@ Here are the other three commands in action:
 
     }).call(this);
 
-    $ coffee-tracer ast test/traces/simple.coffee
+    $ pencil-tracer ast test/traces/simple.coffee
     Block
       Block
         Call
@@ -156,6 +156,9 @@ Here are the other three commands in action:
 
 ## Todo
 
+* JavaScript support
+* Don't depend on a specific CoffeeScript compiler, allow user to specify a
+  compiler, and make sure to support Iced CoffeeScript compilers.
 * Test more than the results of traces. In particular, test that the AST
   manipulations don't change anything about the behaviour of the input program.
 * Figure out how to test async stuff (the test framework needs to wait for the
