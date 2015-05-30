@@ -10,7 +10,8 @@ fs = require "fs"
 path = require "path"
 vm = require "vm"
 
-{instrument} = require "../lib/index"
+{CoffeeScriptInstrumenter} = require "../lib/index"
+instrumenter = new CoffeeScriptInstrumenter
 
 # From http://stackoverflow.com/questions/11142666
 arrayEqual = (a, b) ->
@@ -25,13 +26,12 @@ for traceFile in traceFiles
 
   # Get code and instrument it.
   code = fs.readFileSync path.join(tracesDir, traceFile), "utf-8"
-  js = instrument traceFile, code
+  js = instrumenter.instrument traceFile, code
 
   # Run instrumented code in sandbox, collecting the events.
   sandbox =
-    ide:
-      events: [],
-      trace: (event) -> sandbox.ide.events.push(event)
+    pencilTrace: (event) -> sandbox.pencilTraceEvents.push(event)
+    pencilTraceEvents: [],
   options =
     filename: traceFile,
     timeout: 5000
@@ -56,7 +56,7 @@ for traceFile in traceFiles
 
   # Put the actual result in the same form as the expected one, so they can be
   # compared.
-  actual = (summarizeEvent(event) for event in sandbox.ide.events)
+  actual = (summarizeEvent(event) for event in sandbox.pencilTraceEvents)
 
   # Compare actual and expected.
   if arrayEqual(actual, expected)

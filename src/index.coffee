@@ -1,3 +1,3 @@
-{instrument} = require "./instrument"
-exports.instrument = instrument
+{CoffeeScriptInstrumenter} = require "./coffeescript_instrumenter"
+exports.CoffeeScriptInstrumenter = CoffeeScriptInstrumenter
 

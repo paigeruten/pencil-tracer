@@ -5,7 +5,8 @@ path = require "path"
 vm = require "vm"
 colors = require "colors"
 
-{instrument} = require "./instrument"
+{CoffeeScriptInstrumenter} = require "./coffeescript_instrumenter"
+instrumenter = new CoffeeScriptInstrumenter
 
 printUsage = ->
   console.log "Usage: pencil-tracer <command> <infile>"
@@ -22,16 +23,15 @@ exports.main = (args) ->
     code = fs.readFileSync infile, "utf-8"
 
     if command is "instrument"
-      js = instrument infile, code
+      js = instrumenter.instrument infile, code
       console.log js
     else if command in ["trace", "animate"]
-      js = instrument infile, code
+      js = instrumenter.instrument infile, code
 
       # Execute instrumented code in a VM, collecting the events in sandbox.ide.events.
       sandbox =
-        ide:
-          events: [],
-          trace: (event) -> sandbox.ide.events.push(event)
+        pencilTrace: (event) -> sandbox.pencilTraceEvents.push(event)
+        pencilTraceEvents: [],
         console: console
       options =
         filename: path.basename(infile),
@@ -41,7 +41,7 @@ exports.main = (args) ->
 
       if command is "trace"
         # Pretty-print the events.
-        for event in sandbox.ide.events
+        for event in sandbox.pencilTraceEvents
           loc = event.location
           type = if event.type == "" then "     " else event.type
           console.log "#{type} #{loc.first_line}:#{loc.first_column}-#{loc.last_line}:#{loc.last_column}"
@@ -57,7 +57,7 @@ exports.main = (args) ->
         # highlighted.
         index = 0
         printFrame = ->
-          event = sandbox.ide.events[index]
+          event = sandbox.pencilTraceEvents[index]
           loc = event.location
           lineNum = 1
           colNum = 1
@@ -81,14 +81,14 @@ exports.main = (args) ->
               colNum++
 
           index++
-          unless index == sandbox.ide.events.length
+          unless index == sandbox.pencilTraceEvents.length
             # Do the next frame in about a second
             setTimeout(printFrame, 1200)
 
         # Start the animation.
         printFrame 0
     else if command is "ast"
-      ast = instrument infile, code, ast: yes
+      ast = instrumenter.instrument infile, code, ast: yes
       console.log ast.toString().trim()
     else
       printUsage()

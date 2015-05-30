@@ -17,15 +17,16 @@ This is the pre-project for my [GSoC 2015](https://www.google-melange.com/gsoc/h
 
 To use as a library:
 
-    {instrument} = require "pencil-tracer"
+    {CoffeeScriptInstrumenter} = require "pencil-tracer"
+    instrumenter = new CoffeeScriptInstrumenter
 
-    js = instrument fileName, fileContents, options
+    js = instrumenter.instrument fileName, fileContents, options
 
-For now, `pencil-tracer` simply exposes a single `instrument` function, which takes a filename and file contents as arguments, instruments the given CoffeeScript code, and returns the compiled JavaScript as a string. For each line that is executed in the outputted JS, `ide.trace(event)` will be called, where `event` is an object of the form `{ location: { first_line: .., first_column: .., last_line: .., last_column: .. }, type: .. }`, `type` being either `"enter"` or `"leave"` or `""`, depending on whether a function is being entered or left. For now, it's up to the user of the library to implement `ide.trace()`.
+For now, `pencil-tracer` gives you a single class `CoffeeScriptInstrumenter` which gives you an `instrument` method, which takes a filename and file contents as arguments, instruments the given CoffeeScript code, and returns the compiled JavaScript as a string. For each line that is executed in the outputted JS, `pencilTrace(event)` will be called, where `event` is an object of the form `{ location: { first_line: .., first_column: .., last_line: .., last_column: .. }, type: .. }`, `type` being either `"enter"` or `"leave"` or `""`, depending on whether a function is being entered or left. For now, it's up to the user of the library to implement `pencilTrace()`.
 
 `instrument` can take some options as its third argument:
 
-* `traceFunc`: the function that will be called for each event (default: `"ide.trace"`).
+* `traceFunc`: the function that will be called for each event (default: `"pencilTrace"`).
 * `ast`: if true, returns the instrumented AST instead of the compiled JS.
 
 ## Example
@@ -56,7 +57,7 @@ Here are the other three commands in action:
     (function() {
       var i;
 
-      ide.trace({
+      pencilTrace({
         location: {
           first_line: 1,
           first_column: 1,
@@ -68,7 +69,7 @@ Here are the other three commands in action:
 
       i = 0;
 
-      ide.trace({
+      pencilTrace({
         location: {
           first_line: 2,
           first_column: 1,
@@ -79,7 +80,7 @@ Here are the other three commands in action:
       });
 
       while (i < 3) {
-        ide.trace({
+        pencilTrace({
           location: {
             first_line: 3,
             first_column: 3,
@@ -97,8 +98,7 @@ Here are the other three commands in action:
     Block
       Block
         Call
-          Value "ide"
-            Access "trace"
+          Value "pencilTrace"
           Value
             Obj
               Assign
@@ -125,8 +125,7 @@ Here are the other three commands in action:
         Value "3"
       Block
         Call
-          Value "ide"
-            Access "trace"
+          Value "pencilTrace"
           Value
             Obj
               Assign
@@ -157,8 +156,7 @@ Here are the other three commands in action:
 ## Todo
 
 * JavaScript support
-* Don't depend on a specific CoffeeScript compiler, allow user to specify a
-  compiler, and make sure to support Iced CoffeeScript compilers.
+* Iced CoffeeScript support
 * Test more than the results of traces. In particular, test that the AST
   manipulations don't change anything about the behaviour of the input program.
 * Figure out how to test async stuff (the test framework needs to wait for the
