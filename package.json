@@ -1,7 +1,7 @@
 {
   "name": "pencil-tracer",
   "description": "JavaScript/CoffeeScript instrumentation for a visual debugger",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "main": "./lib/index",
   "scripts": {
     "prepublish": "cake build",
