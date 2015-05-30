@@ -1,0 +1,22 @@
+{
+  "name": "pencil-tracer",
+  "version": "0.0.6",
+  "homepage": "https://github.com/yjerem/coffee-tracer",
+  "authors": [
+    "Jeremy Ruten <jeremy.ruten@gmail.com>"
+  ],
+  "description": "Traces execution of JavaScript/CoffeeScript programs",
+  "main": "lib/index.js",
+  "moduleType": [
+    "node"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "src"
+  ]
+}

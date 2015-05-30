@@ -5,8 +5,7 @@ path = require "path"
 vm = require "vm"
 colors = require "colors"
 
-{CoffeeScriptInstrumenter} = require "./coffeescript_instrumenter"
-instrumenter = new CoffeeScriptInstrumenter
+{instrumentCoffee} = require "./coffeescript_instrumenter"
 
 printUsage = ->
   console.log "Usage: pencil-tracer <command> <infile>"
@@ -23,10 +22,10 @@ exports.main = (args) ->
     code = fs.readFileSync infile, "utf-8"
 
     if command is "instrument"
-      js = instrumenter.instrument infile, code
+      js = instrumentCoffee infile, code
       console.log js
     else if command in ["trace", "animate"]
-      js = instrumenter.instrument infile, code
+      js = instrumentCoffee infile, code
 
       # Execute instrumented code in a VM, collecting the events in sandbox.ide.events.
       sandbox =
@@ -88,7 +87,7 @@ exports.main = (args) ->
         # Start the animation.
         printFrame 0
     else if command is "ast"
-      ast = instrumenter.instrument infile, code, ast: yes
+      ast = instrumentCoffee infile, code, ast: yes
       console.log ast.toString().trim()
     else
       printUsage()

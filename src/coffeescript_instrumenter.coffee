@@ -4,7 +4,7 @@ class InstrumentError extends Error
     Error.call this
     Error.captureStackTrace this, arguments.callee
 
-class exports.CoffeeScriptInstrumenter
+class CoffeeScriptInstrumenter
   # The constructor takes the CoffeeScript module to use to parse the code,
   # generate instrumented code, and compile the result to JavaScript. This lets
   # you instrument Iced CoffeeScript if you want, for example. If no argument
@@ -230,4 +230,8 @@ class exports.CoffeeScriptInstrumenter
 
     # Return the JavaScript.
     return js
+
+exports.instrumentCoffee = (filename, code, options = {}) ->
+  instrumenter = new CoffeeScriptInstrumenter(options.compiler)
+  instrumenter.instrument filename, code, options
 

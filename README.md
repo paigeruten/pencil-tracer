@@ -17,16 +17,15 @@ This is the pre-project for my [GSoC 2015](https://www.google-melange.com/gsoc/h
 
 To use as a library:
 
-    {CoffeeScriptInstrumenter} = require "pencil-tracer"
-    instrumenter = new CoffeeScriptInstrumenter
+    {instrumentCoffee} = require "pencil-tracer"
+    js = instrumentCoffee fileName, fileContents, options
 
-    js = instrumenter.instrument fileName, fileContents, options
-
-For now, `pencil-tracer` gives you a single class `CoffeeScriptInstrumenter` which gives you an `instrument` method, which takes a filename and file contents as arguments, instruments the given CoffeeScript code, and returns the compiled JavaScript as a string. For each line that is executed in the outputted JS, `pencilTrace(event)` will be called, where `event` is an object of the form `{ location: { first_line: .., first_column: .., last_line: .., last_column: .. }, type: .. }`, `type` being either `"enter"` or `"leave"` or `""`, depending on whether a function is being entered or left. For now, it's up to the user of the library to implement `pencilTrace()`.
+For now, `pencil-tracer` gives you a single `instrumentCoffee` function, which takes a filename and file contents as arguments, instruments the given CoffeeScript code, and returns the compiled JavaScript as a string. For each line that is executed in the outputted JS, `pencilTrace(event)` will be called, where `event` is an object of the form `{ location: { first_line: .., first_column: .., last_line: .., last_column: .. }, type: .. }`, `type` being either `"enter"` or `"leave"` or `""`, depending on whether a function is being entered or left. For now, it's up to the user of the library to implement `pencilTrace()`.
 
 `instrument` can take some options as its third argument:
 
 * `traceFunc`: the function that will be called for each event (default: `"pencilTrace"`).
+* `compiler`: the CoffeeScript module to use (this allows you to use instrument Iced CoffeeScript, for example)
 * `ast`: if true, returns the instrumented AST instead of the compiled JS.
 
 ## Example
