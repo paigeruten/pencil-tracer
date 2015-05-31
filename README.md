@@ -155,7 +155,6 @@ Here are the other three commands in action:
 ## Todo
 
 * JavaScript support
-* Iced CoffeeScript support
 * Test more than the results of traces. In particular, test that the AST
   manipulations don't change anything about the behaviour of the input program.
 * Figure out how to test async stuff (the test framework needs to wait for the

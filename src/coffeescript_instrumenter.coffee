@@ -118,7 +118,9 @@ class CoffeeScriptInstrumenter
           expression = children[childIndex]
 
           # Skip Comments and nodes that we have spliced in ourselves.
-          unless expression.doNotInstrument or @nodeType(expression) is "Comment"
+          # Also skip Iced CoffeeScript's runtime node. (TODO: Allow a blacklist
+          # option to be passed in, with these two node types as defaults.)
+          unless expression.doNotInstrument or @nodeType(expression) is "Comment" or @nodeType(expression) is "IcedRuntime"
             # Instrument this line with a normal event.
             instrumentedNode = @createInstrumentedNode(traceFunc, expression.locationData, "")
 
@@ -159,7 +161,10 @@ class CoffeeScriptInstrumenter
 
             # Don't have to do anything if it's an explicit Return, we'll handle
             # that case when we traverse that Return node.
-            unless @nodeType(lastExpr) is "Return"
+            #
+            # Also don't worry about an Await node, as it is currently always a
+            # statement and can't be assigned a value.
+            unless @nodeType(lastExpr) is "Return" or @nodeType(lastExpr) is "Await"
               # Get a temporary variable name and add it to referencedVars so we
               # don't use it again.
               tempVariableName = @temporaryVariable("_tempReturnVal", referencedVars)
@@ -224,7 +229,9 @@ class CoffeeScriptInstrumenter
 
     # Compile the instrumented AST to JavaScript.
     try
-      js = ast.compile {}
+      # Include the Iced CoffeeScript runtime with the output if it's an Iced
+      # CoffeeScript compiler.
+      js = ast.compile { runtime: "inline" }
     catch err
       throw new InstrumentError("Could not compile #{filename} after instrumenting: #{err.stack}")
 
