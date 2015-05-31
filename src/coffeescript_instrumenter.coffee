@@ -238,7 +238,13 @@ class CoffeeScriptInstrumenter
     # Return the JavaScript.
     return js
 
-exports.instrumentCoffee = (filename, code, options = {}) ->
-  instrumenter = new CoffeeScriptInstrumenter(options.compiler)
-  instrumenter.instrument filename, code, options
+# Export the instrumentCoffee() function using AMD if possible, otherwise using
+# CommonJS exports. TODO: find out the proper way to do this.
+if not define?
+  define = (f) -> f require, exports, module
+
+define (require, exports, module) ->
+  exports.instrumentCoffee = (filename, code, options = {}) ->
+    instrumenter = new CoffeeScriptInstrumenter(options.compiler)
+    instrumenter.instrument filename, code, options
 
