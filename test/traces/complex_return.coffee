@@ -3,5 +3,5 @@ f = ->
 
 f()
 
-# Expected: [1, 4, enter(1), 2, 2, enter(2), 2, leave(2), leave(1)]
+# Expected: [1, 4, enter(1), 2, enter(2), 2, leave(2), leave(1)]
 

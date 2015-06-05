@@ -120,7 +120,7 @@ umd ->
         inCode = node if @nodeType(node) is "Code"
 
         # Instrument children of Blocks.
-        if @nodeType(node) is "Block"
+        if @nodeType(node) is "Block" and @nodeType(parent) isnt "Parens"
           children = node.expressions
           childIndex = 0
           while childIndex < children.length
