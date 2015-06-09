@@ -20,10 +20,58 @@ umd ->
     # is provided, it will try to require("coffee-script").
     constructor: (@coffee) ->
       @coffee ?= require "coffee-script"
+      @getNodeTypes()
 
-    # Get the node type of a CoffeeScript AST node (e.g. "Code", "If", etc.)
-    nodeType: (node) ->
-      return node?.constructor?.name or null
+    # Get the constructor for each possible node type in the AST. This is
+    # used to identify the type of each node in the AST, since we can't depend
+    # on constructor.name if the coffee-script library is minified.
+    getNodeTypes: ->
+      @nodeTypes =
+        'Block': @coffee.nodes("").constructor
+        'Literal': @coffee.nodes("0").expressions[0].base.constructor
+        'Undefined': @coffee.nodes("undefined").expressions[0].base.constructor
+        'Null': @coffee.nodes("null").expressions[0].base.constructor
+        'Bool': @coffee.nodes("true").expressions[0].base.constructor
+        'Return': @coffee.nodes("return").expressions[0].constructor
+        'Value': @coffee.nodes("0").expressions[0].constructor
+        'Comment': @coffee.nodes("###\n###").expressions[0].constructor
+        'Call': @coffee.nodes("f()").expressions[0].constructor
+        'Extends': @coffee.nodes("A extends B").expressions[0].constructor
+        'Access': @coffee.nodes("a.b").expressions[0].properties[0].constructor
+        'Index': @coffee.nodes("a[0]").expressions[0].properties[0].constructor
+        'Range': @coffee.nodes("[0..1]").expressions[0].base.constructor
+        'Slice': @coffee.nodes("a[0..1]").expressions[0].properties[0].constructor
+        'Obj': @coffee.nodes("{}").expressions[0].base.constructor
+        'Arr': @coffee.nodes("[]").expressions[0].base.constructor
+        'Class': @coffee.nodes("class").expressions[0].constructor
+        'Assign': @coffee.nodes("a=0").expressions[0].constructor
+        'Code': @coffee.nodes("->").expressions[0].constructor
+        'Param': @coffee.nodes("(a)->").expressions[0].params[0].constructor
+        'Splat': @coffee.nodes("[a...]").expressions[0].base.objects[0].constructor
+        'Expansion': @coffee.nodes("[...]").expressions[0].base.objects[0].constructor
+        'While': @coffee.nodes("0 while true").expressions[0].constructor
+        'Op': @coffee.nodes("1+1").expressions[0].constructor
+        'In': @coffee.nodes("0 in []").expressions[0].constructor
+        'Try': @coffee.nodes("try").expressions[0].constructor
+        'Throw': @coffee.nodes("throw 0").expressions[0].constructor
+        'Existence': @coffee.nodes("a?").expressions[0].constructor
+        'Parens': @coffee.nodes("(0)").expressions[0].base.constructor
+        'For': @coffee.nodes("0 for a in []").expressions[0].constructor
+        'Switch': @coffee.nodes("switch a\n  when 0 then 0").expressions[0].constructor
+        'If': @coffee.nodes("0 if 0").expressions[0].constructor
+
+      # If we have an Iced CoffeeScript compiler, get the Iced-specific node
+      # types as well.
+      if @coffee.iced?
+        icedNodes = @coffee.nodes("await f defer a")
+        @nodeTypes.IcedRuntime = icedNodes.expressions[0].constructor
+        @nodeTypes.Await = icedNodes.expressions[1].constructor
+        @nodeTypes.Defer = icedNodes.expressions[1].body.expressions[0].args[0].constructor
+        @nodeTypes.Slot = icedNodes.expressions[1].body.expressions[0].args[0].slots[0].constructor
+      else
+        # Otherwise assign them to an empty function so we can still use the
+        # instanceof operator on them.
+        @nodeTypes.IcedRuntime = @nodeTypes.Await = @nodeTypes.Defer = @nodeTypes.Slot = ->
 
     # Create a Value(Undefined()) node.
     makeUndefinedNode: ->
@@ -117,10 +165,10 @@ umd ->
         # Keep track of which Code node we are currently in. A Code is a function
         # definition, and we need the Code's location data for 'leave' events that
         # trigger on Return statements.
-        inCode = node if @nodeType(node) is "Code"
+        inCode = node if node instanceof @nodeTypes.Code
 
         # Instrument children of Blocks.
-        if @nodeType(node) is "Block" and @nodeType(parent) isnt "Parens"
+        if node instanceof @nodeTypes.Block and parent not instanceof @nodeTypes.Parens
           children = node.expressions
           childIndex = 0
           while childIndex < children.length
@@ -129,7 +177,7 @@ umd ->
             # Skip Comments and nodes that we have spliced in ourselves.
             # Also skip Iced CoffeeScript's runtime node. (TODO: Allow a blacklist
             # option to be passed in, with these two node types as defaults.)
-            unless expression.doNotInstrument or @nodeType(expression) is "Comment" or @nodeType(expression) is "IcedRuntime"
+            unless expression.doNotInstrument or expression instanceof @nodeTypes.Comment or expression instanceof @nodeTypes.IcedRuntime
               # Instrument this line with a normal event.
               instrumentedNode = @createInstrumentedNode(traceFunc, expression.locationData, "")
 
@@ -145,7 +193,7 @@ umd ->
           # If this is the outer-most Block of a function definition (a Code node),
           # then we need to have an "enter" event trigger at the top of the function,
           # and a "leave" event trigger at the bottom.
-          if @nodeType(parent) is "Code"
+          if parent instanceof @nodeTypes.Code
             # The "enter" event is easy, just stick it at the top of the function body.
             children.splice(0, 0, @createInstrumentedNode(traceFunc, parent.locationData, "enter"))
 
@@ -173,7 +221,7 @@ umd ->
               #
               # Also don't worry about an Await node, as it is currently always a
               # statement and can't be assigned a value.
-              unless @nodeType(lastExpr) is "Return" or @nodeType(lastExpr) is "Await"
+              unless lastExpr instanceof @nodeTypes.Return or lastExpr instanceof @nodeTypes.Await
                 # Get a temporary variable name and add it to referencedVars so we
                 # don't use it again.
                 tempVariableName = @temporaryVariable("_tempReturnVal", referencedVars)
@@ -195,10 +243,10 @@ umd ->
           # Return statements need to be replaced with an assignment to a temporary
           # variable, an instrumented 'leave' event, and a Return statement that
           # returns the temporary variable.
-          if @nodeType(node) is "Return" and inCode?
+          if node instanceof @nodeTypes.Return and inCode?
             # I'm pretty sure the parent of a Return has to be a Block.
             # TODO: make sure this assumption is always true.
-            if @nodeType(parent) isnt "Block"
+            if parent not instanceof @nodeTypes.Block
               throw new InstrumentError("Encountered a Return whose parent is not a Block. This is a bug, please report!")
 
             # Get a temporary variable name and add it to referencedVars so we don't
