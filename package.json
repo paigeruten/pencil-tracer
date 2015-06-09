@@ -27,5 +27,8 @@
   "dependencies": {
     "coffee-script": "^1.9.1",
     "colors": "^1.0.3"
+  },
+  "devDependencies": {
+    "browserify": "^10.2.4"
   }
 }

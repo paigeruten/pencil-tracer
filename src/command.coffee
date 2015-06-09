@@ -5,6 +5,7 @@ path = require "path"
 vm = require "vm"
 colors = require "colors"
 
+coffeeScript = require "coffee-script"
 {instrumentCoffee} = require "./coffeescript_instrumenter"
 
 printUsage = ->
@@ -22,10 +23,10 @@ exports.main = (args) ->
     code = fs.readFileSync infile, "utf-8"
 
     if command is "instrument"
-      js = instrumentCoffee infile, code
+      js = instrumentCoffee infile, code, coffeeScript
       console.log js
     else if command in ["trace", "animate"]
-      js = instrumentCoffee infile, code
+      js = instrumentCoffee infile, code, coffeeScript
 
       # Execute instrumented code in a VM, collecting the events in sandbox.ide.events.
       sandbox =
@@ -87,7 +88,7 @@ exports.main = (args) ->
         # Start the animation.
         printFrame 0
     else if command is "ast"
-      ast = instrumentCoffee infile, code, ast: yes
+      ast = instrumentCoffee infile, code, coffeeScript, ast: yes
       console.log ast.toString().trim()
     else
       printUsage()

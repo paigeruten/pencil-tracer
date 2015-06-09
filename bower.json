@@ -1,11 +1,11 @@
 {
   "name": "pencil-tracer",
-  "homepage": "https://github.com/yjerem/coffee-tracer",
+  "homepage": "https://github.com/yjerem/pencil-tracer",
   "authors": [
     "Jeremy Ruten <jeremy.ruten@gmail.com>"
   ],
   "description": "Traces execution of JavaScript/CoffeeScript programs",
-  "main": "lib/index.js",
+  "main": "pencil-tracer.js",
   "moduleType": [
     "node"
   ],

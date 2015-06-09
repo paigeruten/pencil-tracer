@@ -11,6 +11,7 @@ path = require "path"
 vm = require "vm"
 
 {instrumentCoffee} = require "../lib/index"
+coffeeScript = require "coffee-script"
 
 # From http://stackoverflow.com/questions/11142666
 arrayEqual = (a, b) ->
@@ -25,7 +26,7 @@ for traceFile in traceFiles
 
   # Get code and instrument it.
   code = fs.readFileSync path.join(tracesDir, traceFile), "utf-8"
-  js = instrumentCoffee traceFile, code
+  js = instrumentCoffee traceFile, code, coffeeScript
 
   # Run instrumented code in sandbox, collecting the events.
   sandbox =
