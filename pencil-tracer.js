@@ -228,7 +228,8 @@
       }
       try {
         js = ast.compile({
-          runtime: "inline"
+          runtime: "inline",
+          bare: options.bare
         });
       } catch (_error) {
         err = _error;

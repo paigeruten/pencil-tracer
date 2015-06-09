@@ -280,7 +280,7 @@ class CoffeeScriptInstrumenter
     try
       # Include the Iced CoffeeScript runtime with the output if it's an Iced
       # CoffeeScript compiler.
-      js = ast.compile { runtime: "inline" }
+      js = ast.compile { runtime: "inline", bare: options.bare }
     catch err
       throw new InstrumentError("Could not compile #{filename} after instrumenting: #{err.stack}")
 
