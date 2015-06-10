@@ -29,6 +29,7 @@
     "colors": "^1.0.3"
   },
   "devDependencies": {
-    "browserify": "^10.2.4"
+    "browserify": "^10.2.4",
+    "iced-coffee-script": "^1.8.0-d"
   }
 }
