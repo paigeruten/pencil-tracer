@@ -18,6 +18,7 @@ arrayEqual = (a, b) ->
   a.length is b.length and a.every (elem, i) -> elem is b[i]
 
 # Loop through files in test/traces directory.
+anyFailures = false
 tracesDir = path.join(path.dirname(__filename), "traces")
 traceFiles = fs.readdirSync tracesDir
 for traceFile in traceFiles
@@ -62,7 +63,9 @@ for traceFile in traceFiles
   if arrayEqual(actual, expected)
     console.log "PASSED: test/traces/#{traceFile}"
   else
+    anyFailures = true
     console.log "FAILED: test/traces/#{traceFile}"
     console.log "  Expected: #{expected}"
     console.log "  Actual:   #{actual}"
 
+process.exit 1 if anyFailures
