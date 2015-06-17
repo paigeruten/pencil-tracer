@@ -188,7 +188,7 @@
         }
         return results;
       })();
-      ast = this.coffee.nodes(tokens);
+      ast = this.coffee.nodes(code);
       instrumentTree = (function(_this) {
         return function(node, nodeIndex, parent, inCode) {
           var assignNode, childIndex, children, expression, instrumentedNode, lastExpr, tempVariableName;

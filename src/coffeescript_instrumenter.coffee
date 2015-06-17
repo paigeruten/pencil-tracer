@@ -179,8 +179,8 @@ class CoffeeScriptInstrumenter
     # to use a temporary variable.
     referencedVars = (token[1] for token in tokens when token.variable)
 
-    # Parse the tokens to get an AST.
-    ast = @coffee.nodes tokens
+    # Parse the code to get an AST.
+    ast = @coffee.nodes code
 
     # Instruments the AST recursively. Arguments:
     #   node: the current node of the AST
