@@ -322,12 +322,19 @@
     function JavaScriptInstrumenter() {}
 
     JavaScriptInstrumenter.prototype.instrument = function(filename, code, options) {
-      var ref, traceFunc;
+      var ref, result, traceFunc;
       if (options == null) {
         options = {};
       }
       traceFunc = (ref = options.traceFunc) != null ? ref : "pencilTrace";
-      return code;
+      result = falafel(code, {
+        locations: true
+      }, function(node) {
+        if (node.type === 'CallExpression') {
+          return node.update(traceFunc + "({location: {first_line: " + node.loc.start.line + ", first_column: " + node.loc.start.column + ", last_line: " + node.loc.end.line + ", last_column: " + node.loc.end.column + "}, type: ''})," + (node.source()));
+        }
+      });
+      return result;
     };
 
     return JavaScriptInstrumenter;
