@@ -18,18 +18,15 @@
     "type": "git",
     "url": "https://github.com/yjerem/pencil-tracer.git"
   },
-  "bin": {
-    "pencil-tracer": "./bin/pencil-tracer"
-  },
   "directories": {
     "lib": "./lib"
   },
   "dependencies": {
-    "coffee-script": "^1.9.1",
-    "colors": "^1.0.3"
+    "falafel": "^1.1.0"
   },
   "devDependencies": {
     "browserify": "^10.2.4",
+    "coffee-script": "^1.9.1",
     "iced-coffee-script": "^1.8.0-d"
   }
 }
