@@ -13,8 +13,7 @@ task "build", ->
   coffee.on "exit", ->
     # Make a browserified version called pencil-tracer.js
     b = browserify(standalone: "pencilTracer")
-    b.add "./lib/javascript_instrumenter.js"
-    b.add "./lib/coffeescript_instrumenter.js"
+    b.add "./lib/index.js"
     b.bundle (err, result) ->
       if not err
         fs.writeFile "pencil-tracer.js", result, (err) ->

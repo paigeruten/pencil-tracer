@@ -1,16 +1,10 @@
-class InstrumentError extends Error
-  constructor: (@message) ->
-    @name = "InstrumentError"
-    Error.call this
-    Error.captureStackTrace this, arguments.callee
-
 class CoffeeScriptInstrumenter
   # The constructor takes the CoffeeScript module to use to parse the code,
   # generate instrumented code, and compile the result to JavaScript. This lets
   # you instrument Iced CoffeeScript if you want, for example.
   constructor: (@coffee) ->
     if not @coffee?
-      throw "Error: a CoffeeScript compiler must be passed to CoffeeScriptInstrumenter!"
+      throw new Error("A CoffeeScript compiler must be passed to CoffeeScriptInstrumenter!")
 
     @getNodeTypes()
 
@@ -178,17 +172,15 @@ class CoffeeScriptInstrumenter
   instrument: (filename, code, options = {}) ->
     traceFunc = options.traceFunc ? "pencilTrace"
 
-    # Parse the code to get an AST.
-    try
-      tokens = @coffee.tokens code, {}
+    # Tokenize the code.
+    tokens = @coffee.tokens code, {}
 
-      # Get all referenced variables so we can generate a unique one when we need
-      # to use a temporary variable.
-      referencedVars = (token[1] for token in tokens when token.variable)
+    # Get all referenced variables so we can generate a unique one when we need
+    # to use a temporary variable.
+    referencedVars = (token[1] for token in tokens when token.variable)
 
-      ast = @coffee.nodes tokens
-    catch err
-      throw new InstrumentError("Could not parse #{filename}: #{err.stack}")
+    # Parse the tokens to get an AST.
+    ast = @coffee.nodes tokens
 
     # Instruments the AST recursively. Arguments:
     #   node: the current node of the AST
@@ -284,7 +276,7 @@ class CoffeeScriptInstrumenter
           # I'm pretty sure the parent of a Return has to be a Block.
           # TODO: make sure this assumption is always true.
           if parent not instanceof @nodeTypes.Block
-            throw new InstrumentError("Encountered a Return whose parent is not a Block. This is a bug, please report!")
+            throw new Error("Encountered a Return whose parent is not a Block. This is a bug, please report!")
 
           # Get a temporary variable name and add it to referencedVars so we don't
           # use it again.
@@ -334,7 +326,7 @@ class CoffeeScriptInstrumenter
         referencedVars: referencedVars
       result = @compileAst ast, code, compileOptions
     catch err
-      throw new InstrumentError("Could not compile #{filename} after instrumenting: #{err.stack}")
+      throw new Error("Could not compile #{filename} after instrumenting: #{err.stack}")
 
     # Return the JavaScript.
     return result
