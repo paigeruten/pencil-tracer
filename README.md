@@ -50,13 +50,5 @@ function is entered or left.
 ## Todo
 
 * JavaScript support
-* Test more than the results of traces. In particular, test that the AST
-  manipulations don't change anything about the behaviour of the input program.
-* Figure out how to test async stuff (the test framework needs to wait for the
-  async stuff to complete before it examines the events array, somehow).
-* Allow a blacklist of node types that shouldn't be instrumented to be
-  specified (`Parens` nodes can really pollute the trace).
-* Maybe add a new event type for when exceptions are thrown (currently the
-  trace shows a function being entered but not left).
-* Eventually, track program state like values of variables.
+* Track program state like values of variables.
 
