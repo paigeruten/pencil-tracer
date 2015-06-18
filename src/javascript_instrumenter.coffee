@@ -1,14 +1,26 @@
 falafel = require "falafel"
 
 class JavaScriptInstrumenter
+  # Returns javascript code that calls the trace function, passing in the event
+  # object.
+  createInstrumentedLine: (traceFunc, location, eventType) ->
+    # Give the line and column numbers as 1-indexed values, instead of 0-indexed.
+    locationObj = "{ first_line: #{location.start.line + 1},"
+    locationObj += " first_column: #{location.start.column + 1},"
+    locationObj += " last_line: #{location.end.line + 1},"
+    locationObj += " last_column: #{location.end.column + 1} }"
+
+    "#{traceFunc}({ location: #{locationObj}, type: '#{eventType}' })"
+
   instrument: (filename, code, options = {}) ->
     traceFunc = options.traceFunc ? "pencilTrace"
 
     result = falafel code, locations: true, (node) ->
       if node.type is 'CallExpression'
-        node.update "#{traceFunc}({location: {first_line: #{node.loc.start.line}, first_column: #{node.loc.start.column}, last_line: #{node.loc.end.line}, last_column: #{node.loc.end.column}}, type: 'code'}),#{node.source()}"
+        instrumentedLine = @createInstrumentedLine(traceFunc, node.loc, "code")
+        node.update "#{instrumentedLine},#{node.source()}"
 
-    return result
+    return result.toString()
 
 exports.instrumentJs = (filename, code, options = {}) ->
   instrumenter = new JavaScriptInstrumenter()

@@ -227,6 +227,15 @@
   JavaScriptInstrumenter = (function() {
     function JavaScriptInstrumenter() {}
 
+    JavaScriptInstrumenter.prototype.createInstrumentedLine = function(traceFunc, location, eventType) {
+      var locationObj;
+      locationObj = "{ first_line: " + (location.start.line + 1) + ",";
+      locationObj += " first_column: " + (location.start.column + 1) + ",";
+      locationObj += " last_line: " + (location.end.line + 1) + ",";
+      locationObj += " last_column: " + (location.end.column + 1) + " }";
+      return traceFunc + "({ location: " + locationObj + ", type: '" + eventType + "' })";
+    };
+
     JavaScriptInstrumenter.prototype.instrument = function(filename, code, options) {
       var ref, result, traceFunc;
       if (options == null) {
@@ -236,11 +245,13 @@
       result = falafel(code, {
         locations: true
       }, function(node) {
+        var instrumentedLine;
         if (node.type === 'CallExpression') {
-          return node.update(traceFunc + "({location: {first_line: " + node.loc.start.line + ", first_column: " + node.loc.start.column + ", last_line: " + node.loc.end.line + ", last_column: " + node.loc.end.column + "}, type: 'code'})," + (node.source()));
+          instrumentedLine = this.createInstrumentedLine(traceFunc, node.loc, "code");
+          return node.update(instrumentedLine + "," + (node.source()));
         }
       });
-      return result;
+      return result.toString();
     };
 
     return JavaScriptInstrumenter;
