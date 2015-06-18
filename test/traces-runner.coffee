@@ -25,7 +25,7 @@ for coffee in [coffeeScript, icedCoffeeScript]
   console.log "Running trace tests for #{compilerName}"
 
   # Loop through files in test/traces directory.
-  tracesDir = path.join(path.dirname(__filename), "traces")
+  tracesDir = path.join(path.dirname(__filename), "traces/coffee")
   traceFiles = fs.readdirSync tracesDir
   for traceFile in traceFiles
     # Skip non-CS files that might be in there (like .swp files).
