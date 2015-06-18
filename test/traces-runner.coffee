@@ -22,7 +22,7 @@ arrayEqual = (a, b) ->
 anyFailures = false
 for coffee in [coffeeScript, icedCoffeeScript]
   compilerName = if coffee is coffeeScript then "CoffeeScript" else "Iced CoffeeScript"
-  console.log "Running tests for #{compilerName}"
+  console.log "Running trace tests for #{compilerName}"
 
   # Loop through files in test/traces directory.
   tracesDir = path.join(path.dirname(__filename), "traces")
@@ -84,8 +84,8 @@ for coffee in [coffeeScript, icedCoffeeScript]
           else
             anyFailures = true
             console.log "\nFAILED: test/traces/#{traceFile}:#{lineNum}"
-            console.log "  Expected: #{assertMatch[1]}"
-            console.log "  Actual:   #{result}"
+            console.log "  Assertion: #{assertMatch[1]}"
+            console.log "  Result:    #{result}"
         catch err
           anyFailures = true
           console.log "\nFAILED: test/traces/#{traceFile}:#{lineNum}"

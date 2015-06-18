@@ -4,11 +4,7 @@ browserify = require "browserify"
 
 task "build", ->
   # Compile CoffeeScript to JavaScript
-  coffee = spawn "./node_modules/.bin/coffee", ["-c", "-o", "lib", "src"]
-  coffee.stderr.on "data", (data) ->
-    process.stderr.write data.toString()
-  coffee.stdout.on "data", (data) ->
-    print data.toString()
+  coffee = spawn "./node_modules/.bin/coffee", ["-c", "-o", "lib", "src"], stdio: "inherit"
 
   coffee.on "exit", ->
     # Make a browserified version called pencil-tracer.js
@@ -23,5 +19,9 @@ task "build", ->
         console.error "failed " + err
 
 task "test", ->
-  require "./test/test"
+  mocha = spawn "./node_modules/.bin/mocha", ["--no-colors", "--compilers", "coffee:coffee-script/register", "test/unit"], stdio: "inherit"
+
+  mocha.on "exit", (code) ->
+    process.exit code if code isnt 0
+    require "./test/traces-runner"
 

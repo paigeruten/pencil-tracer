@@ -27,6 +27,8 @@
   "devDependencies": {
     "browserify": "^10.2.4",
     "coffee-script": "^1.9.1",
-    "iced-coffee-script": "^1.8.0-d"
+    "iced-coffee-script": "^1.8.0-d",
+    "mocha": "^2.2.5",
+    "should": "^7.0.1"
   }
 }
