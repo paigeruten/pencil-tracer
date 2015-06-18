@@ -1,5 +1,6 @@
 (1)
-(((1)))
+one = (((1)))
 
-# Expected: [1, 2]
+# Trace: [1, 2]
+# Assert: one === 1
 

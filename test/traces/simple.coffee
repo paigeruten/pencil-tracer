@@ -1,5 +1,7 @@
 x = 3
 y = x * 4
 
-# Expected: [1, 2]
+# Trace: [1, 2]
+# Assert: x === 3
+# Assert: y === 12
 

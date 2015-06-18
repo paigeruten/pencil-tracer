@@ -1,6 +1,7 @@
-firstName = "Jeremy"
-lastName = "Ruten"
+firstName = 'Jeremy'
+lastName = 'Ruten'
 fullName = "#{firstName} #{lastName}"
 
-# Expected: [1, 2, 3]
+# Trace: [1, 2, 3]
+# Assert: fullName === 'Jeremy Ruten'
 

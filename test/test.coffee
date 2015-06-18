@@ -36,7 +36,7 @@ for coffee in [coffeeScript, icedCoffeeScript]
 
     # Get code and instrument it.
     code = fs.readFileSync path.join(tracesDir, traceFile), "utf-8"
-    js = instrumentCoffee traceFile, code, coffee
+    js = instrumentCoffee traceFile, code, coffee, bare: true
 
     # Run instrumented code in sandbox, collecting the events.
     sandbox =
@@ -45,37 +45,54 @@ for coffee in [coffeeScript, icedCoffeeScript]
     options =
       filename: traceFile,
       timeout: 5000
-    m = require "module"
-    wrapped = vm.runInContext(m.wrap(js), vm.createContext(sandbox), options)
-    wrapped(exports, require, module, traceFile, tracesDir)
+    vm.runInContext(js, vm.createContext(sandbox), options)
 
-    # Find the expected line numbers of the trace.
-    matches = code.match /^# Expected: (.+)$/m
+    lineNum = 1
+    for line in code.split '\n'
+      traceMatch = line.match /^# Trace: (.+)$/
+      assertMatch = line.match /^# Assert: (.+)$/
+      if traceMatch
+        # Evaluate the expected value, which is a tiny DSL.
+        enter = (lineNum) -> "enter #{lineNum}"
+        leave = (lineNum) -> "leave #{lineNum}"
+        expected = eval(traceMatch[1])
 
-    # Evaluate the expected value, which is a tiny DSL.
-    enter = (lineNum) -> "enter #{lineNum}"
-    leave = (lineNum) -> "leave #{lineNum}"
-    expected = eval(matches[1])
+        # The actual array of events will be mapped over with this function.
+        summarizeEvent = (event) ->
+          if event.type is ""
+            event.location.first_line
+          else
+            "#{event.type} #{event.location.first_line}"
 
-    # The actual array of events will be mapped over with this function.
-    summarizeEvent = (event) ->
-      if event.type is ""
-        event.location.first_line
-      else
-        "#{event.type} #{event.location.first_line}"
+        # Put the actual result in the same form as the expected one, so they can be
+        # compared.
+        actual = (summarizeEvent(event) for event in sandbox.pencilTraceEvents)
 
-    # Put the actual result in the same form as the expected one, so they can be
-    # compared.
-    actual = (summarizeEvent(event) for event in sandbox.pencilTraceEvents)
+        # Compare actual and expected.
+        if arrayEqual(actual, expected)
+          process.stdout.write "."
+        else
+          anyFailures = true
+          console.log "\nFAILED: test/traces/#{traceFile}:#{lineNum}"
+          console.log "  Expected: #{expected}"
+          console.log "  Actual:   #{actual}"
+      else if assertMatch
+        try
+          result = eval "with (sandbox) { #{assertMatch[1]} }"
+          if result
+            process.stdout.write "."
+          else
+            anyFailures = true
+            console.log "\nFAILED: test/traces/#{traceFile}:#{lineNum}"
+            console.log "  Expected: #{assertMatch[1]}"
+            console.log "  Actual:   #{result}"
+        catch err
+          anyFailures = true
+          console.log "\nFAILED: test/traces/#{traceFile}:#{lineNum}"
+          console.log "  Exception: #{err}"
 
-    # Compare actual and expected.
-    if arrayEqual(actual, expected)
-      console.log "  PASSED: test/traces/#{traceFile}"
-    else
-      anyFailures = true
-      console.log "  FAILED: test/traces/#{traceFile}"
-      console.log "    Expected: #{expected}"
-      console.log "    Actual:   #{actual}"
+      lineNum += 1
+  console.log ""
 
 process.exit 1 if anyFailures
 

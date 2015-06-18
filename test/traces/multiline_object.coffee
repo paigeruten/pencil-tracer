@@ -5,5 +5,8 @@ obj =
   prop2: id 2
   prop3: id 3
 
-# Expected: [1, 3, enter(1), 1, leave(1), enter(1), 1, leave(1), enter(1), 1, leave(1)]
+# Trace: [1, 3, enter(1), 1, leave(1), enter(1), 1, leave(1), enter(1), 1, leave(1)]
+# Assert: obj.prop1 === 1
+# Assert: obj.prop2 === 2
+# Assert: obj.prop3 === 3
 
