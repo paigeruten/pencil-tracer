@@ -27,7 +27,7 @@ Two functions are exported: `instrumentJs` and `instrumentCoffee`. `instrumentJs
 Both functions return a string containing the instrumented code. When run, the instrumented code will make a call to `pencilTrace()` for each line, passing it an object like this:
 
     {
-      type: '',
+      type: 'code',
       location: {
         first_line: 1,
         first_column: 1,
@@ -36,7 +36,7 @@ Both functions return a string containing the instrumented code. When run, the i
       }
     }
 
-`type` is empty for ordinary lines. It can also be `enter` or `leave` when a
+`type` is `code` for normal executed code. It can also be `enter` or `leave` when a
 function is entered or left.
 
 `instrumentJs` and `instrumentCoffee` take the following options:

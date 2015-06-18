@@ -208,7 +208,7 @@ class CoffeeScriptInstrumenter
           # option to be passed in, with these two node types as defaults.)
           unless expression.doNotInstrument or expression instanceof @nodeTypes.Comment or expression instanceof @nodeTypes.IcedRuntime
             # Instrument this line with a normal event.
-            instrumentedNode = @createInstrumentedNode(traceFunc, expression.locationData, "")
+            instrumentedNode = @createInstrumentedNode(traceFunc, expression.locationData, "code")
 
             # Insert it before the node it corresponds to, and correct the childIndex.
             children.splice(childIndex, 0, instrumentedNode)

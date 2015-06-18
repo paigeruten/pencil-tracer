@@ -6,7 +6,7 @@ class JavaScriptInstrumenter
 
     result = falafel code, locations: true, (node) ->
       if node.type is 'CallExpression'
-        node.update "#{traceFunc}({location: {first_line: #{node.loc.start.line}, first_column: #{node.loc.start.column}, last_line: #{node.loc.end.line}, last_column: #{node.loc.end.column}}, type: ''}),#{node.source()}"
+        node.update "#{traceFunc}({location: {first_line: #{node.loc.start.line}, first_column: #{node.loc.start.column}, last_line: #{node.loc.end.line}, last_column: #{node.loc.end.column}}, type: 'code'}),#{node.source()}"
 
     return result
 

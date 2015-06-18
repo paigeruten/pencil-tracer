@@ -57,7 +57,7 @@ for coffee in [coffeeScript, icedCoffeeScript]
 
         # The actual array of events will be mapped over with this function.
         summarizeEvent = (event) ->
-          if event.type is ""
+          if event.type is "code"
             event.location.first_line
           else
             "#{event.type} #{event.location.first_line}"

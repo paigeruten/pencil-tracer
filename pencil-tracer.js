@@ -213,7 +213,7 @@
             while (childIndex < children.length) {
               expression = children[childIndex];
               if (!(expression.doNotInstrument || expression instanceof _this.nodeTypes.Comment || expression instanceof _this.nodeTypes.IcedRuntime)) {
-                instrumentedNode = _this.createInstrumentedNode(traceFunc, expression.locationData, "");
+                instrumentedNode = _this.createInstrumentedNode(traceFunc, expression.locationData, "code");
                 children.splice(childIndex, 0, instrumentedNode);
                 childIndex++;
                 instrumentTree(expression, childIndex, node, inCode);
@@ -331,7 +331,7 @@
         locations: true
       }, function(node) {
         if (node.type === 'CallExpression') {
-          return node.update(traceFunc + "({location: {first_line: " + node.loc.start.line + ", first_column: " + node.loc.start.column + ", last_line: " + node.loc.end.line + ", last_column: " + node.loc.end.column + "}, type: ''})," + (node.source()));
+          return node.update(traceFunc + "({location: {first_line: " + node.loc.start.line + ", first_column: " + node.loc.start.column + ", last_line: " + node.loc.end.line + ", last_column: " + node.loc.end.column + "}, type: 'code'})," + (node.source()));
         }
       });
       return result;
