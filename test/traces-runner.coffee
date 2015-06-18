@@ -46,10 +46,13 @@ for coffee in [coffeeScript, icedCoffeeScript]
     sandbox.run js
 
     lineNum = 1
+    foundTrace = false
     for line in code.split '\n'
       traceMatch = line.match /^# Trace: (.+)$/
       assertMatch = line.match /^# Assert: (.+)$/
       if traceMatch
+        foundTrace = true
+
         # Evaluate the expected value, which is a tiny DSL.
         enter = (lineNum) -> "enter #{lineNum}"
         leave = (lineNum) -> "leave #{lineNum}"
@@ -91,6 +94,8 @@ for coffee in [coffeeScript, icedCoffeeScript]
 
       lineNum += 1
     sandbox.dispose()
+    if not foundTrace
+      console.log "\nWARNING: test/traces/#{traceFile} doesn't contain an expected trace."
   console.log ""
 
 process.exit 1 if anyFailures

@@ -1,13 +1,14 @@
 f = ->
   throw new Error()
 
-try
-  f()
-catch err
-  'caught it'
+g = ->
+  try
+    f()
+  catch err
+    'caught it'
 
-# Trace: [1, 4, 5, enter(1), 2, 7]
+g()
 
-# Note: not sure if there should be a leave event when the error is thrown.
-# Maybe need a new kind of event for this?
+# Trace: [1, 4, 10, enter(4), 5, 6, enter(1), 2, leave(1), 8, leave(4)]
+# Assert: g() === 'caught it'
 
