@@ -10,7 +10,7 @@ fs = require "fs"
 path = require "path"
 Contextify = require "contextify"
 
-{instrumentCoffee} = require "../lib/index"
+{instrumentJs, instrumentCoffee} = require "../lib/index"
 coffeeScript = require "coffee-script"
 icedCoffeeScript = require "iced-coffee-script"
 

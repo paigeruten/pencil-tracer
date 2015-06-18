@@ -1,5 +1,5 @@
 should = require 'should'
-pencilTracer = require 'pencil-tracer'
+pencilTracer = require '../../lib/index'
 coffeeScript = require 'coffee-script'
 
 describe 'CoffeeScriptInstrumenter', ->
