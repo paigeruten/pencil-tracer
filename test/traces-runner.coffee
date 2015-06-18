@@ -8,7 +8,7 @@
 
 fs = require "fs"
 path = require "path"
-vm = require "vm"
+Contextify = require "contextify"
 
 {instrumentCoffee} = require "../lib/index"
 coffeeScript = require "coffee-script"
@@ -42,10 +42,8 @@ for coffee in [coffeeScript, icedCoffeeScript]
     sandbox =
       pencilTrace: (event) -> sandbox.pencilTraceEvents.push(event)
       pencilTraceEvents: [],
-    options =
-      filename: traceFile,
-      timeout: 5000
-    vm.runInContext(js, vm.createContext(sandbox), options)
+    Contextify sandbox
+    sandbox.run js
 
     lineNum = 1
     for line in code.split '\n'
@@ -92,6 +90,7 @@ for coffee in [coffeeScript, icedCoffeeScript]
           console.log "  Exception: #{err}"
 
       lineNum += 1
+    sandbox.dispose()
   console.log ""
 
 process.exit 1 if anyFailures
