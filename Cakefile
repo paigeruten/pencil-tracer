@@ -19,6 +19,8 @@ task "build", ->
         console.error "failed " + err
 
 task "test", ->
+  invoke "build"
+
   mocha = spawn "./node_modules/.bin/mocha", ["--no-colors", "--compilers", "coffee:coffee-script/register", "test/unit"], stdio: "inherit"
 
   mocha.on "exit", (code) ->
