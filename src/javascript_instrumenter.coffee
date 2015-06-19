@@ -17,9 +17,14 @@ class JavaScriptInstrumenter
     traceFunc = options.traceFunc ? "pencilTrace"
 
     result = falafel code, locations: true, (node) =>
-      if /(Declaration|Statement)$/.test(node.type)
+      if /(Declaration|Statement)$/.test(node.type) and node.type isnt "BlockStatement"
         instrumentedLine = @createInstrumentedLine(traceFunc, node.loc, "code")
         node.update "#{instrumentedLine};#{node.source()}"
+
+      if node.type is "BlockStatement" and /^Function(Declaration|Expression)$/.test node.parent.type
+        instrumentedEnterLine = @createInstrumentedLine(traceFunc, node.loc, "enter")
+        instrumentedLeaveLine = @createInstrumentedLine(traceFunc, node.loc, "leave")
+        node.update "{ #{instrumentedEnterLine}; try #{node.source()} finally { #{instrumentedLeaveLine}; } }"
 
     return result.toString()
 
