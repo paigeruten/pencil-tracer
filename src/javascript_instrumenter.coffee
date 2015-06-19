@@ -72,7 +72,7 @@ class JavaScriptInstrumenter
             node.update "{ #{enter}; try #{node.source()} finally { #{leave}; } }"
 
         when "ThisExpression", "ArrayExpression", "ObjectExpression", "FunctionExpression", "SequenceExpression", "UnaryExpression", "BinaryExpression", "AssignmentExpression", "UpdateExpression", "LogicalExpression", "ConditionalExpression", "CallExpression", "NewExpression", "MemberExpression", "Identifier", "Literal", "RegExpLiteral"
-          if node.parent.type in ["IfStatement", "WithStatement", "SwitchStatement", "WhileStatement", "DoWhileStatement", "ForStatement", "ForInStatement", "SwitchCase"]
+          if node.parent.type in ["IfStatement", "WithStatement", "SwitchStatement", "WhileStatement", "DoWhileStatement", "ForStatement", "SwitchCase"]
             code = @traceCall(traceFunc, node.loc, "code")
             node.update "#{code},(#{node.source()})"
 

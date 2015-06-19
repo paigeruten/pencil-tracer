@@ -7,11 +7,13 @@ var g = function() {
     f();
   } catch (err) {
     return 'caught it';
+  } finally {
+    'finally';
   }
 };
 
 g();
 
-// Trace: [1, 5, 13, enter(5), 7, enter(1), 2, leave(1), 9, leave(5)]
+// Trace: [1, 5, 15, enter(5), 7, enter(1), 2, leave(1), 9, 11, leave(5)]
 // Assert: g() === 'caught it'
 
