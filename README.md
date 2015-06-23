@@ -49,6 +49,5 @@ function is entered or left.
 
 ## Todo
 
-* JavaScript support
 * Track program state like values of variables.
 

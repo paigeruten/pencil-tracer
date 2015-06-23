@@ -74,6 +74,20 @@ class CoffeeScriptInstrumenter
 
     instrumentedNode.expressions[0]
 
+  createInstrumentedExpr: (traceFunc, locationData, eventType, originalExpr) ->
+    parensBlock = @coffee.nodes("(0)").expressions[0]
+    parensBlock.base.body.expressions = []
+    parensBlock.base.body.expressions[0] = @createInstrumentedNode(traceFunc, locationData, "code")
+    parensBlock.base.body.expressions[1] = originalExpr
+    parensBlock
+
+  shouldInstrumentNode: (node) ->
+    node not instanceof @nodeTypes.IcedRuntime and
+    node not instanceof @nodeTypes.Comment and
+    node not instanceof @nodeTypes.While and
+    node not instanceof @nodeTypes.Switch and
+    node not instanceof @nodeTypes.If
+
   compileAst: (ast, originalCode, options) ->
     # Pilfer the SourceMap class from CoffeeScript...
     SourceMap = @coffee.compile("", sourceMap: true).sourceMap.constructor
@@ -135,15 +149,14 @@ class CoffeeScriptInstrumenter
     #   parent: the parent node, or null if we're on the root node
     #
     instrumentTree = (node, parent=null) =>
-      if node instanceof @nodeTypes.Block and parent not instanceof @nodeTypes.Parens
+      if node instanceof @nodeTypes.Block and parent not instanceof @nodeTypes.Parens and parent not instanceof @nodeTypes.Class
         # Instrument children of Blocks with normal code events.
         children = node.expressions
         childIndex = 0
         while childIndex < children.length
           expression = children[childIndex]
 
-          # Skip Comments and Iced CoffeeScript's runtime node.
-          unless expression instanceof @nodeTypes.Comment or expression instanceof @nodeTypes.IcedRuntime
+          if @shouldInstrumentNode(expression)
             # Instrument this line with a normal code event.
             instrumentedNode = @createInstrumentedNode(traceFunc, expression.locationData, "code")
 
@@ -151,10 +164,35 @@ class CoffeeScriptInstrumenter
             children.splice(childIndex, 0, instrumentedNode)
             childIndex++
 
-            # Recursively instrument the children of this node.
-            instrumentTree(expression, node)
+          # Recursively instrument the children of this node.
+          instrumentTree(expression, node) unless expression instanceof @nodeTypes.IcedRuntime
 
           childIndex++
+
+        # Instrument the first line of for loops, so that the for loop is
+        # traced for each iteration.
+        if parent instanceof @nodeTypes.For
+          instrumentedNode = @createInstrumentedNode(traceFunc, parent.locationData, "code")
+          children.unshift(instrumentedNode)
+
+      else if node instanceof @nodeTypes.While
+        node.condition = @createInstrumentedExpr(traceFunc, node.locationData, "code", node.condition)
+
+        node.eachChild (child) =>
+          instrumentTree(child, node)
+      else if node instanceof @nodeTypes.Switch
+        node.subject = @createInstrumentedExpr(traceFunc, node.locationData, "code", node.subject)
+
+        for caseClause in node.cases
+          caseClause[0] = @createInstrumentedExpr(traceFunc, caseClause[0].locationData, "code", caseClause[0])
+
+        node.eachChild (child) =>
+          instrumentTree(child, node)
+      else if node instanceof @nodeTypes.If
+        node.condition = @createInstrumentedExpr(traceFunc, node.condition.locationData, "code", node.condition)
+
+        node.eachChild (child) =>
+          instrumentTree(child, node)
       else if node instanceof @nodeTypes.Code
         # Wrap function bodies with a try..finally block that makes sure "enter"
         # and "leave" events occur for the function, even if an exception is

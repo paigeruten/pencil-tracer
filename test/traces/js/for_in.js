@@ -9,6 +9,6 @@ for (key2 in obj) {
   sum += obj[key2];
 }
 
-// Trace: [1, 2, 4, 4, 4, 7, 9, 9, 9]
+// Trace: [1, 2, 3, 4, 3, 4, 3, 4, 7, 8, 9, 8, 9, 8, 9]
 // Assert: sum === 12
 

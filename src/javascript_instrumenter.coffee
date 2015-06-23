@@ -47,11 +47,13 @@ class JavaScriptInstrumenter
 
     result = falafel code, locations: true, (node) =>
       switch node.type
-        # Instrument solitary semicolons to show that they count as statements,
-        # and to show they can count as if/while bodies.
         when "EmptyStatement", "ExpressionStatement", "BreakStatement", "ContinueStatement", "ReturnStatement", "ThrowStatement", "DebuggerStatement", "FunctionDeclaration"
           code = @traceCall(traceFunc, node.loc, "code")
           node.update "#{code}; #{node.source()}"
+
+          if node.parent.type in ["DoWhileStatement", "ForInStatement"]
+            code = @traceCall(traceFunc, node.parent.loc, "code")
+            node.update "#{code}; #{node.source()}"
 
         when "VariableDeclaration"
           if node.parent.type not in ["ForStatement", "ForInStatement"]
@@ -59,17 +61,30 @@ class JavaScriptInstrumenter
             node.update "#{code}; #{node.source()}"
 
         when "ForStatement"
-          if node.init
-            code = @traceCall(traceFunc, node.init.loc, "code")
-            node.update "#{code}; #{node.source()}"
+          code = @traceCall(traceFunc, node.init?.loc || node.loc, "code")
+          node.update "#{code}; #{node.source()}"
 
-        # Instrument BlockStatements with enter/leave events when they are used
-        # as a function body.
         when "BlockStatement"
           if node.parent.type in ["FunctionDeclaration", "FunctionExpression"]
             enter = @traceCall(traceFunc, node.loc, "enter")
             leave = @traceCall(traceFunc, node.loc, "leave")
             node.update "{ #{enter}; try #{node.source()} finally { #{leave}; } }"
+
+          if node.parent.type is "TryStatement"
+            if node.parent.block is node
+              code = @traceCall(traceFunc, node.parent.loc, "code")
+              node.update "{ #{code}; #{node.source()} }"
+            else if node.parent.finalizer is node
+              code = @traceCall(traceFunc, node.loc, "code")
+              node.update "{ #{code}; #{node.source()} }"
+
+          if node.parent.type is "CatchClause"
+            code = @traceCall(traceFunc, node.parent.loc, "code")
+            node.update "{ #{code}; #{node.source()} }"
+
+          if node.parent.type in ["DoWhileStatement", "ForInStatement"]
+            code = @traceCall(traceFunc, node.parent.loc, "code")
+            node.update "{ #{code}; #{node.source()} }"
 
         when "ThisExpression", "ArrayExpression", "ObjectExpression", "FunctionExpression", "SequenceExpression", "UnaryExpression", "BinaryExpression", "AssignmentExpression", "UpdateExpression", "LogicalExpression", "ConditionalExpression", "CallExpression", "NewExpression", "MemberExpression", "Identifier", "Literal", "RegExpLiteral"
           if node.parent.type in ["IfStatement", "WithStatement", "SwitchStatement", "WhileStatement", "DoWhileStatement", "ForStatement", "SwitchCase"]

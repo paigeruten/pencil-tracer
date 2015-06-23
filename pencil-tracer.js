@@ -69,6 +69,19 @@
       return instrumentedNode.expressions[0];
     };
 
+    CoffeeScriptInstrumenter.prototype.createInstrumentedExpr = function(traceFunc, locationData, eventType, originalExpr) {
+      var parensBlock;
+      parensBlock = this.coffee.nodes("(0)").expressions[0];
+      parensBlock.base.body.expressions = [];
+      parensBlock.base.body.expressions[0] = this.createInstrumentedNode(traceFunc, locationData, "code");
+      parensBlock.base.body.expressions[1] = originalExpr;
+      return parensBlock;
+    };
+
+    CoffeeScriptInstrumenter.prototype.shouldInstrumentNode = function(node) {
+      return !(node instanceof this.nodeTypes.IcedRuntime) && !(node instanceof this.nodeTypes.Comment) && !(node instanceof this.nodeTypes.While) && !(node instanceof this.nodeTypes.Switch) && !(node instanceof this.nodeTypes.If);
+    };
+
     CoffeeScriptInstrumenter.prototype.compileAst = function(ast, originalCode, options) {
       var SourceMap, answer, compilerName, currentColumn, currentLine, fragment, fragments, header, i, js, len, map, newLines;
       SourceMap = this.coffee.compile("", {
@@ -131,25 +144,49 @@
       ast = this.coffee.nodes(code);
       instrumentTree = (function(_this) {
         return function(node, parent) {
-          var childIndex, children, expression, instrumentedNode, results, tryBlock, tryNode;
+          var caseClause, childIndex, children, expression, i, instrumentedNode, len, ref1, tryBlock, tryNode;
           if (parent == null) {
             parent = null;
           }
-          if (node instanceof _this.nodeTypes.Block && !(parent instanceof _this.nodeTypes.Parens)) {
+          if (node instanceof _this.nodeTypes.Block && !(parent instanceof _this.nodeTypes.Parens) && !(parent instanceof _this.nodeTypes.Class)) {
             children = node.expressions;
             childIndex = 0;
-            results = [];
             while (childIndex < children.length) {
               expression = children[childIndex];
-              if (!(expression instanceof _this.nodeTypes.Comment || expression instanceof _this.nodeTypes.IcedRuntime)) {
+              if (_this.shouldInstrumentNode(expression)) {
                 instrumentedNode = _this.createInstrumentedNode(traceFunc, expression.locationData, "code");
                 children.splice(childIndex, 0, instrumentedNode);
                 childIndex++;
+              }
+              if (!(expression instanceof _this.nodeTypes.IcedRuntime)) {
                 instrumentTree(expression, node);
               }
-              results.push(childIndex++);
+              childIndex++;
             }
-            return results;
+            if (parent instanceof _this.nodeTypes.For) {
+              instrumentedNode = _this.createInstrumentedNode(traceFunc, parent.locationData, "code");
+              return children.unshift(instrumentedNode);
+            }
+          } else if (node instanceof _this.nodeTypes.While) {
+            node.condition = _this.createInstrumentedExpr(traceFunc, node.locationData, "code", node.condition);
+            return node.eachChild(function(child) {
+              return instrumentTree(child, node);
+            });
+          } else if (node instanceof _this.nodeTypes.Switch) {
+            node.subject = _this.createInstrumentedExpr(traceFunc, node.locationData, "code", node.subject);
+            ref1 = node.cases;
+            for (i = 0, len = ref1.length; i < len; i++) {
+              caseClause = ref1[i];
+              caseClause[0] = _this.createInstrumentedExpr(traceFunc, caseClause[0].locationData, "code", caseClause[0]);
+            }
+            return node.eachChild(function(child) {
+              return instrumentTree(child, node);
+            });
+          } else if (node instanceof _this.nodeTypes.If) {
+            node.condition = _this.createInstrumentedExpr(traceFunc, node.condition.locationData, "code", node.condition);
+            return node.eachChild(function(child) {
+              return instrumentTree(child, node);
+            });
           } else if (node instanceof _this.nodeTypes.Code) {
             tryBlock = _this.coffee.nodes("try\nfinally");
             tryNode = tryBlock.expressions[0];
@@ -256,7 +293,7 @@
         locations: true
       }, (function(_this) {
         return function(node) {
-          var enter, leave, ref1, ref2, ref3;
+          var enter, leave, ref1, ref2, ref3, ref4, ref5, ref6;
           switch (node.type) {
             case "EmptyStatement":
             case "ExpressionStatement":
@@ -268,24 +305,43 @@
             case "FunctionDeclaration":
               code = _this.traceCall(traceFunc, node.loc, "code");
               node.update(code + "; " + (node.source()));
+              if ((ref1 = node.parent.type) === "DoWhileStatement" || ref1 === "ForInStatement") {
+                code = _this.traceCall(traceFunc, node.parent.loc, "code");
+                node.update(code + "; " + (node.source()));
+              }
               break;
             case "VariableDeclaration":
-              if ((ref1 = node.parent.type) !== "ForStatement" && ref1 !== "ForInStatement") {
+              if ((ref2 = node.parent.type) !== "ForStatement" && ref2 !== "ForInStatement") {
                 code = _this.traceCall(traceFunc, node.loc, "code");
                 node.update(code + "; " + (node.source()));
               }
               break;
             case "ForStatement":
-              if (node.init) {
-                code = _this.traceCall(traceFunc, node.init.loc, "code");
-                node.update(code + "; " + (node.source()));
-              }
+              code = _this.traceCall(traceFunc, ((ref3 = node.init) != null ? ref3.loc : void 0) || node.loc, "code");
+              node.update(code + "; " + (node.source()));
               break;
             case "BlockStatement":
-              if ((ref2 = node.parent.type) === "FunctionDeclaration" || ref2 === "FunctionExpression") {
+              if ((ref4 = node.parent.type) === "FunctionDeclaration" || ref4 === "FunctionExpression") {
                 enter = _this.traceCall(traceFunc, node.loc, "enter");
                 leave = _this.traceCall(traceFunc, node.loc, "leave");
                 node.update("{ " + enter + "; try " + (node.source()) + " finally { " + leave + "; } }");
+              }
+              if (node.parent.type === "TryStatement") {
+                if (node.parent.block === node) {
+                  code = _this.traceCall(traceFunc, node.parent.loc, "code");
+                  node.update("{ " + code + "; " + (node.source()) + " }");
+                } else if (node.parent.finalizer === node) {
+                  code = _this.traceCall(traceFunc, node.loc, "code");
+                  node.update("{ " + code + "; " + (node.source()) + " }");
+                }
+              }
+              if (node.parent.type === "CatchClause") {
+                code = _this.traceCall(traceFunc, node.parent.loc, "code");
+                node.update("{ " + code + "; " + (node.source()) + " }");
+              }
+              if ((ref5 = node.parent.type) === "DoWhileStatement" || ref5 === "ForInStatement") {
+                code = _this.traceCall(traceFunc, node.parent.loc, "code");
+                node.update("{ " + code + "; " + (node.source()) + " }");
               }
               break;
             case "ThisExpression":
@@ -305,7 +361,7 @@
             case "Identifier":
             case "Literal":
             case "RegExpLiteral":
-              if ((ref3 = node.parent.type) === "IfStatement" || ref3 === "WithStatement" || ref3 === "SwitchStatement" || ref3 === "WhileStatement" || ref3 === "DoWhileStatement" || ref3 === "ForStatement" || ref3 === "SwitchCase") {
+              if ((ref6 = node.parent.type) === "IfStatement" || ref6 === "WithStatement" || ref6 === "SwitchStatement" || ref6 === "WhileStatement" || ref6 === "DoWhileStatement" || ref6 === "ForStatement" || ref6 === "SwitchCase") {
                 code = _this.traceCall(traceFunc, node.loc, "code");
                 node.update(code + ",(" + (node.source()) + ")");
               }
