@@ -65,6 +65,8 @@ testFile = (traceFile, language) ->
   Contextify sandbox
   sandbox.run instrumentedCode
 
+  console.log sandbox.pencilTraceEvents
+
   # Loop through lines, looking for special Trace or Assert comments.
   success = true
   foundTrace = false
