@@ -1,3 +1,5 @@
+{Scope} = require "./scope"
+
 class CoffeeScriptInstrumenter
   # The constructor takes the CoffeeScript module to use to parse the code,
   # generate instrumented code, and compile the result to JavaScript. This lets
@@ -65,7 +67,6 @@ class CoffeeScriptInstrumenter
   # event object.
   createInstrumentedNode: (targetNode, eventType) ->
     locationData = targetNode.locationData
-    scope = targetNode.pencilTracerScope
 
     # Give the line and column numbers as 1-indexed values, instead of 0-indexed.
     locationObj = "{ first_line: #{locationData.first_line + 1},"
@@ -73,10 +74,7 @@ class CoffeeScriptInstrumenter
     locationObj += " last_line: #{locationData.last_line + 1},"
     locationObj += " last_column: #{locationData.last_column + 1} }"
 
-    varsObj = "{ "
-    for ident in (scope || [])
-      varsObj += "#{ident}: #{ident}, "
-    varsObj += "}"
+    varsObj = targetNode.pencilTracerScope.toCode()
 
     eventObj = "{ location: #{locationObj}, type: '#{eventType}', vars: #{varsObj} }"
 
@@ -151,15 +149,13 @@ class CoffeeScriptInstrumenter
   findVariables: (node, scopes=[], depth=0) ->
     if node instanceof @nodeTypes.Block
       depth += 1
-      scopes[depth] = []
+      scopes[depth] = new Scope(scopes[depth - 1])
 
     node.pencilTracerScope = scopes[depth]
 
     if node instanceof @nodeTypes.Assign and node.context isnt "object"
       if node.variable.base instanceof @nodeTypes.Literal
-        ident = node.variable.base.value
-        if scopes[depth].indexOf(ident) is -1
-          scopes[depth].push ident
+        scopes[depth].add node.variable.base.value
 
     node.eachChild (child) =>
       @findVariables(child, scopes, depth)
