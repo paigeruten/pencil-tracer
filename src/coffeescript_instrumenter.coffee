@@ -79,9 +79,12 @@ class CoffeeScriptInstrumenter
     locationObj += " last_line: #{locationData.last_line + 1},"
     locationObj += " last_column: #{locationData.last_column + 1} }"
 
-    varsObj = targetNode.pencilTracerScope.toCode()
-
-    eventObj = "{ location: #{locationObj}, type: '#{eventType}', vars: #{varsObj} }"
+    eventObj =
+      if @options.trackVariables
+        varsObj = targetNode.pencilTracerScope.toCode()
+        "{ location: #{locationObj}, type: '#{eventType}', vars: #{varsObj} }"
+      else
+        "{ location: #{locationObj}, type: '#{eventType}' }"
 
     # Create the node from a string of CoffeeScript.
     instrumentedNode =
@@ -251,7 +254,7 @@ class CoffeeScriptInstrumenter
     ast = @coffee.nodes code
 
     # Find all variables and scopes.
-    @findVariables ast
+    @findVariables ast if @options.trackVariables
 
     # Instrument the whole AST.
     @instrumentTree ast

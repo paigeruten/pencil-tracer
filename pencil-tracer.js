@@ -78,8 +78,7 @@
       locationObj += " first_column: " + (locationData.first_column + 1) + ",";
       locationObj += " last_line: " + (locationData.last_line + 1) + ",";
       locationObj += " last_column: " + (locationData.last_column + 1) + " }";
-      varsObj = targetNode.pencilTracerScope.toCode();
-      eventObj = "{ location: " + locationObj + ", type: '" + eventType + "', vars: " + varsObj + " }";
+      eventObj = this.options.trackVariables ? (varsObj = targetNode.pencilTracerScope.toCode(), "{ location: " + locationObj + ", type: '" + eventType + "', vars: " + varsObj + " }") : "{ location: " + locationObj + ", type: '" + eventType + "' }";
       instrumentedNode = this.coffee.nodes(this.options.traceFunc + "(" + eventObj + ")").expressions[0];
       instrumentedNode.pencilTracerInstrumented = true;
       return instrumentedNode;
@@ -256,7 +255,9 @@
     CoffeeScriptInstrumenter.prototype.instrument = function(filename, code) {
       var ast, compileOptions, err, result;
       ast = this.coffee.nodes(code);
-      this.findVariables(ast);
+      if (this.options.trackVariables) {
+        this.findVariables(ast);
+      }
       this.instrumentTree(ast);
       if (this.options.ast) {
         return ast;
