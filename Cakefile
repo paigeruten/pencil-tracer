@@ -1,6 +1,7 @@
 fs = require "fs"
 {spawn} = require "child_process"
 browserify = require "browserify"
+Contextify = require "contextify"
 {instrumentJs, instrumentCoffee} = require "./src/index"
 
 build = (callback) ->
@@ -33,6 +34,7 @@ task "test", ->
       require "./test/traces-runner"
 
 option "-f", "--file [FILENAME]", "program to instrument"
+
 task "instrument", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
@@ -42,4 +44,33 @@ task "instrument", (options) ->
     console.log instrumentJs(options.file, code)
   else
     console.log "Error: file must end in .js or .coffee."
+    process.exit 1
+
+task "ast", (options) ->
+  code = fs.readFileSync options.file, "utf-8"
+  if /\.coffee$/.test options.file
+    coffee = require "coffee-script"
+    console.log instrumentCoffee(options.file, code, coffee, ast: true).toString()
+  else
+    console.log "Error: file must end in .coffee."
+    process.exit 1
+
+task "trace", (options) ->
+  code = fs.readFileSync options.file, "utf-8"
+  if /\.coffee$/.test options.file
+    coffee = require "coffee-script"
+    code = instrumentCoffee(options.file, code, coffee, bare: true)
+  else if /\.js$/.test options.file
+    code = instrumentCoffee(options.file, code)
+  else
+    console.log "Error: file must end in .js or .coffee."
+    process.exit 1
+
+  sandbox =
+    pencilTrace: (event) -> sandbox.pencilTraceEvents.push(event)
+    pencilTraceEvents: []
+  Contextify sandbox
+  sandbox.run code
+
+  console.log sandbox.pencilTraceEvents
 
