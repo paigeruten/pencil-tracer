@@ -4,6 +4,9 @@ browserify = require "browserify"
 Contextify = require "contextify"
 {instrumentJs, instrumentCoffee} = require "./src/index"
 
+option "-f", "--file [FILENAME]", "input program for 'instrument', 'ast', and 'trace' tasks"
+option "-i", "--iced", "use Iced CoffeeScript for 'instrument', 'ast', and 'trace' tasks"
+
 build = (callback) ->
   # Compile CoffeeScript to JavaScript
   coffee = spawn "./node_modules/.bin/coffee", ["-c", "-o", "lib", "src"], stdio: "inherit"
@@ -33,12 +36,10 @@ task "test", ->
       process.exit code if code isnt 0
       require "./test/traces-runner"
 
-option "-f", "--file [FILENAME]", "program to instrument"
-
 task "instrument", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
-    coffee = require "coffee-script"
+    coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
     console.log instrumentCoffee(options.file, code, coffee)
   else if /\.js$/.test options.file
     console.log instrumentJs(options.file, code)
@@ -49,7 +50,7 @@ task "instrument", (options) ->
 task "ast", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
-    coffee = require "coffee-script"
+    coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
     console.log instrumentCoffee(options.file, code, coffee, ast: true).toString()
   else
     console.log "Error: file must end in .coffee."
@@ -58,7 +59,7 @@ task "ast", (options) ->
 task "trace", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
-    coffee = require "coffee-script"
+    coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
     code = instrumentCoffee(options.file, code, coffee, bare: true)
   else if /\.js$/.test options.file
     code = instrumentCoffee(options.file, code)

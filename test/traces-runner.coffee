@@ -61,7 +61,8 @@ testFile = (traceFile, language) ->
   # Run instrumented code in sandbox, collecting the events.
   sandbox =
     pencilTrace: (event) -> sandbox.pencilTraceEvents.push(event)
-    pencilTraceEvents: [],
+    pencilTraceEvents: []
+    console: console
   Contextify sandbox
   sandbox.run instrumentedCode
 

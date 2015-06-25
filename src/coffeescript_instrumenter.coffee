@@ -53,19 +53,24 @@ class CoffeeScriptInstrumenter
     # If we have an Iced CoffeeScript compiler, get the Iced-specific node
     # types as well.
     if @coffee.iced?
-      icedNodes = @coffee.nodes("await f defer a")
+      icedNodes = @coffee.nodes("if 1\n  await f defer a\n  1")
+      awaitNode = icedNodes.expressions[1].body.expressions[0]
       @nodeTypes.IcedRuntime = icedNodes.expressions[0].constructor
-      @nodeTypes.Await = icedNodes.expressions[1].constructor
-      @nodeTypes.Defer = icedNodes.expressions[1].body.expressions[0].args[0].constructor
-      @nodeTypes.Slot = icedNodes.expressions[1].body.expressions[0].args[0].slots[0].constructor
+      @nodeTypes.Await = awaitNode.constructor
+      @nodeTypes.Defer = awaitNode.body.expressions[0].args[0].constructor
+      @nodeTypes.Slot = awaitNode.body.expressions[0].args[0].slots[0].constructor
+      @nodeTypes.IcedTailCall = awaitNode.icedContinuationBlock.expressions[0].constructor
     else
       # Otherwise assign them to an empty function so we can still use the
       # instanceof operator on them.
-      @nodeTypes.IcedRuntime = @nodeTypes.Await = @nodeTypes.Defer = @nodeTypes.Slot = ->
+      @nodeTypes.IcedRuntime = @nodeTypes.Await = @nodeTypes.Defer = @nodeTypes.Slot = @nodeTypes.IcedTailCall = ->
 
   # Creates an instrumented node that calls the trace function, passing in the
   # event object.
   createInstrumentedNode: (targetNode, eventType) ->
+    if targetNode instanceof @nodeTypes.IcedTailCall
+      targetNode = targetNode.value
+
     locationData = targetNode.locationData
 
     # Give the line and column numbers as 1-indexed values, instead of 0-indexed.
@@ -97,7 +102,9 @@ class CoffeeScriptInstrumenter
     node instanceof @nodeTypes.IcedRuntime
 
   shouldInstrumentNode: (node) ->
+    not node.pencilTracerInstrumented and
     node not instanceof @nodeTypes.IcedRuntime and
+    (node not instanceof @nodeTypes.IcedTailCall or node.value) and
     node not instanceof @nodeTypes.Comment and
     node not instanceof @nodeTypes.While and
     node not instanceof @nodeTypes.Switch and
@@ -186,8 +193,7 @@ class CoffeeScriptInstrumenter
           childIndex++
 
         # Recursively instrument the children of this node.
-
-        @instrumentTree(expression, node) unless @shouldSkipNode(expression)
+        @instrumentTree(expression, node)
 
         childIndex++
 
