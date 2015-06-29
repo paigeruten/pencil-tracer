@@ -8,12 +8,12 @@ class Scope
 
   toCode: ->
     curScope = this
-    code = "{ "
+    code = "[ "
     while curScope
       for ident in curScope.vars
-        code += "#{ident}: #{ident}, "
+        code += "{ name: '#{ident}', value: #{ident} }, "
       curScope = curScope.parent
-    code += "}"
+    code += "]"
     code
 
 exports.Scope = Scope

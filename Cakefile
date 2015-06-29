@@ -6,6 +6,7 @@ Contextify = require "contextify"
 
 option "-f", "--file [FILENAME]", "input program for 'instrument', 'ast', and 'trace' tasks"
 option "-i", "--iced", "use Iced CoffeeScript for 'instrument', 'ast', and 'trace' tasks"
+option "-v", "--vars", "track variables for 'instrument', 'ast', and 'trace' tasks"
 
 build = (callback) ->
   # Compile CoffeeScript to JavaScript
@@ -60,7 +61,7 @@ task "trace", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    code = instrumentCoffee(options.file, code, coffee, bare: true)
+    code = instrumentCoffee(options.file, code, coffee, bare: true, trackVariables: options.vars)
   else if /\.js$/.test options.file
     code = instrumentCoffee(options.file, code)
   else
