@@ -156,7 +156,7 @@ class CoffeeScriptInstrumenter
     else
       js
 
-  findVariables: (node, scopes=[], depth=0) ->
+  findVariables: (node, parent=null, scopes=[], depth=0) ->
     if node instanceof @nodeTypes.Block
       depth += 1
       scopes[depth] = new Scope(scopes[depth - 1])
@@ -168,10 +168,10 @@ class CoffeeScriptInstrumenter
         scopes[depth].add node.variable.base.value
 
     node.eachChild (child) =>
-      @findVariables(child, scopes, depth)
+      @findVariables(child, node, scopes, depth)
 
     if node.icedContinuationBlock?
-      @findVariables(node.icedContinuationBlock, scopes, depth)
+      @findVariables(node.icedContinuationBlock, node, scopes, depth)
 
   # Instruments the AST recursively. Arguments:
   #   node: the current node of the AST
@@ -263,15 +263,12 @@ class CoffeeScriptInstrumenter
     return ast if @options.ast
 
     # Compile the instrumented AST to JavaScript.
-    try
-      compileOptions =
-        runtime: "inline" # for Iced CoffeeScript, includes the runtime in the output
-        bare: @options.bare
-        header: @options.header
-        sourceMap: @options.sourceMap
-      result = @compileAst ast, code, compileOptions
-    catch err
-      throw new Error("Could not compile #{filename} after instrumenting: #{err.stack}")
+    compileOptions =
+      runtime: "inline" # for Iced CoffeeScript, includes the runtime in the output
+      bare: @options.bare
+      header: @options.header
+      sourceMap: @options.sourceMap
+    result = @compileAst ast, code, compileOptions
 
     # Return the JavaScript.
     return result

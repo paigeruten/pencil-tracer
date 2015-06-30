@@ -154,7 +154,10 @@
       }
     };
 
-    CoffeeScriptInstrumenter.prototype.findVariables = function(node, scopes, depth) {
+    CoffeeScriptInstrumenter.prototype.findVariables = function(node, parent, scopes, depth) {
+      if (parent == null) {
+        parent = null;
+      }
       if (scopes == null) {
         scopes = [];
       }
@@ -173,11 +176,11 @@
       }
       node.eachChild((function(_this) {
         return function(child) {
-          return _this.findVariables(child, scopes, depth);
+          return _this.findVariables(child, node, scopes, depth);
         };
       })(this));
       if (node.icedContinuationBlock != null) {
-        return this.findVariables(node.icedContinuationBlock, scopes, depth);
+        return this.findVariables(node.icedContinuationBlock, node, scopes, depth);
       }
     };
 
@@ -253,7 +256,7 @@
     };
 
     CoffeeScriptInstrumenter.prototype.instrument = function(filename, code) {
-      var ast, compileOptions, err, result;
+      var ast, compileOptions, result;
       ast = this.coffee.nodes(code);
       if (this.options.trackVariables) {
         this.findVariables(ast);
@@ -262,18 +265,13 @@
       if (this.options.ast) {
         return ast;
       }
-      try {
-        compileOptions = {
-          runtime: "inline",
-          bare: this.options.bare,
-          header: this.options.header,
-          sourceMap: this.options.sourceMap
-        };
-        result = this.compileAst(ast, code, compileOptions);
-      } catch (_error) {
-        err = _error;
-        throw new Error("Could not compile " + filename + " after instrumenting: " + err.stack);
-      }
+      compileOptions = {
+        runtime: "inline",
+        bare: this.options.bare,
+        header: this.options.header,
+        sourceMap: this.options.sourceMap
+      };
+      result = this.compileAst(ast, code, compileOptions);
       return result;
     };
 
@@ -462,16 +460,16 @@
     Scope.prototype.toCode = function() {
       var code, curScope, i, ident, len, ref;
       curScope = this;
-      code = "{ ";
+      code = "[ ";
       while (curScope) {
         ref = curScope.vars;
         for (i = 0, len = ref.length; i < len; i++) {
           ident = ref[i];
-          code += ident + ": " + ident + ", ";
+          code += "{ name: '" + ident + "', value: " + ident + " }, ";
         }
         curScope = curScope.parent;
       }
-      code += "}";
+      code += "]";
       return code;
     };
 
