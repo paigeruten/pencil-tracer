@@ -82,7 +82,11 @@ class CoffeeScriptInstrumenter
     eventObj =
       if @options.trackVariables
         varsObj = targetNode.pencilTracerScope.toCode()
-        "{ location: #{locationObj}, type: '#{eventType}', vars: #{varsObj} }"
+        activeVars = "["
+        for ident in @findVariables(targetNode)
+          activeVars += "'#{ident}', "
+        activeVars += "]"
+        "{ location: #{locationObj}, type: '#{eventType}', vars: #{varsObj}, activeVars: #{activeVars} }"
       else
         "{ location: #{locationObj}, type: '#{eventType}' }"
 
@@ -177,7 +181,8 @@ class CoffeeScriptInstrumenter
       return []
     else
       # Otherwise the argument is an array or object, for destructuring
-      # assignment. Here we'll delegate to findVariables().
+      # assignment. Here we'll delegate to findVariables(), as it will
+      # recursively find all identifiers in the structure.
       return @findVariables(name)
 
   findScopes: (node, parent=null, scopes=[], depth=0) ->
