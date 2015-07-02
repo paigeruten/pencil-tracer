@@ -160,13 +160,17 @@ class CoffeeScriptInstrumenter
     else
       js
 
-  findVariables: (node, vars=[]) ->
+  findVariables: (node, parent=null, vars=[]) ->
     if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
-      if vars.indexOf(node.base.value) is -1
-        vars.push node.base.value
+      # Skip properties in object literals, like the 'a' in {a: b}. That's not
+      # a variable (but 'b' is).
+      skip = parent instanceof @nodeTypes.Assign and parent.context is "object" and parent.variable is node
+      if not skip
+        if vars.indexOf(node.base.value) is -1
+          vars.push node.base.value
 
     node.eachChild (child) =>
-      @findVariables(child, vars)
+      @findVariables(child, node, vars)
 
     vars
 
