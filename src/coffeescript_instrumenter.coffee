@@ -156,22 +156,51 @@ class CoffeeScriptInstrumenter
     else
       js
 
-  findVariables: (node, parent=null, scopes=[], depth=0) ->
+  findVariables: (node, vars=[]) ->
+    if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
+      vars.push node.base.value
+
+    node.eachChild (child) =>
+      @findVariables(child, vars)
+
+    vars
+
+  findArguments: (paramNode) ->
+    throw new Error("findArguments() expects a Param node") unless paramNode instanceof @nodeTypes.Param
+
+    name = paramNode.name
+    if name instanceof @nodeTypes.Literal
+      # A normal argument.
+      return [name.value]
+    else if name instanceof @nodeTypes.Value
+      # The argument is an @-variable, we won't deal with those for now.
+      return []
+    else
+      # Otherwise the argument is an array or object, for destructuring
+      # assignment. Here we'll delegate to findVariables().
+      return @findVariables(name)
+
+  findScopes: (node, parent=null, scopes=[], depth=0) ->
     if node instanceof @nodeTypes.Block
       depth += 1
       scopes[depth] = new Scope(scopes[depth - 1])
+
+      if parent instanceof @nodeTypes.Code
+        for param in parent.params
+          for arg in @findArguments(param)
+            scopes[depth].add arg, "argument"
 
     node.pencilTracerScope = scopes[depth]
 
     if node instanceof @nodeTypes.Assign and node.context isnt "object"
       if node.variable.base instanceof @nodeTypes.Literal
-        scopes[depth].add node.variable.base.value
+        scopes[depth].add node.variable.base.value, "variable"
 
     node.eachChild (child) =>
-      @findVariables(child, node, scopes, depth)
+      @findScopes(child, node, scopes, depth)
 
     if node.icedContinuationBlock?
-      @findVariables(node.icedContinuationBlock, node, scopes, depth)
+      @findScopes(node.icedContinuationBlock, node, scopes, depth)
 
   # Instruments the AST recursively. Arguments:
   #   node: the current node of the AST
@@ -254,7 +283,7 @@ class CoffeeScriptInstrumenter
     ast = @coffee.nodes code
 
     # Find all variables and scopes.
-    @findVariables ast if @options.trackVariables
+    @findScopes ast if @options.trackVariables
 
     # Instrument the whole AST.
     @instrumentTree ast

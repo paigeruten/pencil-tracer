@@ -154,7 +154,38 @@
       }
     };
 
-    CoffeeScriptInstrumenter.prototype.findVariables = function(node, parent, scopes, depth) {
+    CoffeeScriptInstrumenter.prototype.findVariables = function(node, vars) {
+      if (vars == null) {
+        vars = [];
+      }
+      if (node instanceof this.nodeTypes.Value && node.base instanceof this.nodeTypes.Literal && node.base.isAssignable()) {
+        vars.push(node.base.value);
+      }
+      node.eachChild((function(_this) {
+        return function(child) {
+          return _this.findVariables(child, vars);
+        };
+      })(this));
+      return vars;
+    };
+
+    CoffeeScriptInstrumenter.prototype.findArguments = function(paramNode) {
+      var name;
+      if (!(paramNode instanceof this.nodeTypes.Param)) {
+        throw new Error("findArguments() expects a Param node");
+      }
+      name = paramNode.name;
+      if (name instanceof this.nodeTypes.Literal) {
+        return [name.value];
+      } else if (name instanceof this.nodeTypes.Value) {
+        return [];
+      } else {
+        return this.findVariables(name);
+      }
+    };
+
+    CoffeeScriptInstrumenter.prototype.findScopes = function(node, parent, scopes, depth) {
+      var arg, i, j, len, len1, param, ref, ref1;
       if (parent == null) {
         parent = null;
       }
@@ -167,20 +198,31 @@
       if (node instanceof this.nodeTypes.Block) {
         depth += 1;
         scopes[depth] = new Scope(scopes[depth - 1]);
+        if (parent instanceof this.nodeTypes.Code) {
+          ref = parent.params;
+          for (i = 0, len = ref.length; i < len; i++) {
+            param = ref[i];
+            ref1 = this.findArguments(param);
+            for (j = 0, len1 = ref1.length; j < len1; j++) {
+              arg = ref1[j];
+              scopes[depth].add(arg, "argument");
+            }
+          }
+        }
       }
       node.pencilTracerScope = scopes[depth];
       if (node instanceof this.nodeTypes.Assign && node.context !== "object") {
         if (node.variable.base instanceof this.nodeTypes.Literal) {
-          scopes[depth].add(node.variable.base.value);
+          scopes[depth].add(node.variable.base.value, "variable");
         }
       }
       node.eachChild((function(_this) {
         return function(child) {
-          return _this.findVariables(child, node, scopes, depth);
+          return _this.findScopes(child, node, scopes, depth);
         };
       })(this));
       if (node.icedContinuationBlock != null) {
-        return this.findVariables(node.icedContinuationBlock, node, scopes, depth);
+        return this.findScopes(node.icedContinuationBlock, node, scopes, depth);
       }
     };
 
@@ -259,7 +301,7 @@
       var ast, compileOptions, result;
       ast = this.coffee.nodes(code);
       if (this.options.trackVariables) {
-        this.findVariables(ast);
+        this.findScopes(ast);
       }
       this.instrumentTree(ast);
       if (this.options.ast) {
@@ -451,21 +493,24 @@
       this.vars = [];
     }
 
-    Scope.prototype.add = function(variable) {
+    Scope.prototype.add = function(variable, type) {
       if (this.vars.indexOf(variable) === -1) {
-        return this.vars.push(variable);
+        return this.vars.push({
+          name: variable,
+          type: type
+        });
       }
     };
 
     Scope.prototype.toCode = function() {
-      var code, curScope, i, ident, len, ref;
+      var code, curScope, i, len, ref, variable;
       curScope = this;
       code = "[ ";
       while (curScope) {
         ref = curScope.vars;
         for (i = 0, len = ref.length; i < len; i++) {
-          ident = ref[i];
-          code += "{ name: '" + ident + "', value: " + ident + " }, ";
+          variable = ref[i];
+          code += "{ name: '" + variable.name + "', value: " + variable.name + ", type: '" + variable.type + "' }, ";
         }
         curScope = curScope.parent;
       }

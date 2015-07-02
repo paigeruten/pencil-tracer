@@ -1,4 +1,5 @@
 fs = require "fs"
+util = require "util"
 {spawn} = require "child_process"
 browserify = require "browserify"
 Contextify = require "contextify"
@@ -41,7 +42,7 @@ task "instrument", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    console.log instrumentCoffee(options.file, code, coffee)
+    console.log instrumentCoffee(options.file, code, coffee, bare: true, trackVariables: options.vars)
   else if /\.js$/.test options.file
     console.log instrumentJs(options.file, code)
   else
@@ -52,7 +53,7 @@ task "ast", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    console.log instrumentCoffee(options.file, code, coffee, ast: true).toString()
+    console.log instrumentCoffee(options.file, code, coffee, ast: true, bare: true, trackVariables: options.vars).toString()
   else
     console.log "Error: file must end in .coffee."
     process.exit 1
@@ -71,8 +72,9 @@ task "trace", (options) ->
   sandbox =
     pencilTrace: (event) -> sandbox.pencilTraceEvents.push(event)
     pencilTraceEvents: []
+    console: console
   Contextify sandbox
   sandbox.run code
 
-  console.log sandbox.pencilTraceEvents
+  console.log util.inspect(sandbox.pencilTraceEvents, showHidden: false, depth: null)
 
