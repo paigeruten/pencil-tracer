@@ -162,7 +162,8 @@ class CoffeeScriptInstrumenter
 
   findVariables: (node, vars=[]) ->
     if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
-      vars.push node.base.value
+      if vars.indexOf(node.base.value) is -1
+        vars.push node.base.value
 
     node.eachChild (child) =>
       @findVariables(child, vars)
