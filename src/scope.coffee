@@ -6,14 +6,15 @@ class Scope
     if @vars.indexOf(variable) is -1
       @vars.push { name: variable, type: type }
 
-  toCode: ->
+  toCode: (activeVars) ->
     curScope = this
-    code = "[ "
+    code = "{"
     while curScope
       for variable in curScope.vars
-        code += "{ name: '#{variable.name}', value: #{variable.name}, type: '#{variable.type}' }, "
+        isActive = activeVars.indexOf(variable.name) isnt -1
+        code += "'#{variable.name}': { name: '#{variable.name}', value: #{variable.name}, type: '#{variable.type}', active: #{isActive} }, "
       curScope = curScope.parent
-    code += "]"
+    code += "}"
     code
 
 exports.Scope = Scope

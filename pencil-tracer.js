@@ -69,7 +69,7 @@
     };
 
     CoffeeScriptInstrumenter.prototype.createInstrumentedNode = function(targetNode, eventType) {
-      var activeVars, eventObj, ident, instrumentedNode, locationData, locationObj, varsObj;
+      var eventObj, instrumentedNode, locationData, locationObj, varsObj;
       if (targetNode instanceof this.nodeTypes.IcedTailCall) {
         targetNode = targetNode.value;
       }
@@ -78,22 +78,7 @@
       locationObj += " first_column: " + (locationData.first_column + 1) + ",";
       locationObj += " last_line: " + (locationData.last_line + 1) + ",";
       locationObj += " last_column: " + (locationData.last_column + 1) + " }";
-      eventObj = (function() {
-        var i, len, ref;
-        if (this.options.trackVariables) {
-          varsObj = targetNode.pencilTracerScope.toCode();
-          activeVars = "[";
-          ref = this.findVariables(targetNode);
-          for (i = 0, len = ref.length; i < len; i++) {
-            ident = ref[i];
-            activeVars += "'" + ident + "', ";
-          }
-          activeVars += "]";
-          return "{ location: " + locationObj + ", type: '" + eventType + "', vars: " + varsObj + ", activeVars: " + activeVars + " }";
-        } else {
-          return "{ location: " + locationObj + ", type: '" + eventType + "' }";
-        }
-      }).call(this);
+      eventObj = this.options.trackVariables ? (varsObj = targetNode.pencilTracerScope.toCode(this.findVariables(targetNode)), "{ location: " + locationObj + ", type: '" + eventType + "', vars: " + varsObj + " }") : "{ location: " + locationObj + ", type: '" + eventType + "' }";
       instrumentedNode = this.coffee.nodes(this.options.traceFunc + "(" + eventObj + ")").expressions[0];
       instrumentedNode.pencilTracerInstrumented = true;
       return instrumentedNode;
@@ -526,19 +511,20 @@
       }
     };
 
-    Scope.prototype.toCode = function() {
-      var code, curScope, i, len, ref, variable;
+    Scope.prototype.toCode = function(activeVars) {
+      var code, curScope, i, isActive, len, ref, variable;
       curScope = this;
-      code = "[ ";
+      code = "{";
       while (curScope) {
         ref = curScope.vars;
         for (i = 0, len = ref.length; i < len; i++) {
           variable = ref[i];
-          code += "{ name: '" + variable.name + "', value: " + variable.name + ", type: '" + variable.type + "' }, ";
+          isActive = activeVars.indexOf(variable.name) !== -1;
+          code += "'" + variable.name + "': { name: '" + variable.name + "', value: " + variable.name + ", type: '" + variable.type + "', active: " + isActive + " }, ";
         }
         curScope = curScope.parent;
       }
-      code += "]";
+      code += "}";
       return code;
     };
 

@@ -1,10 +1,6 @@
 # This script goes through each test in the test/traces directory, does a trace
 # on that test program, and compares the result with an expected trace that is
 # specified in a special comment in the test program.
-#
-# The special comment looks like "# Expected: [1, 2, enter 3, leave 3]", where
-# the array is an array of line numbers and enter/leave events that's expected
-# to correspond to the actual events array.
 
 fs = require "fs"
 path = require "path"
@@ -14,38 +10,44 @@ Contextify = require "contextify"
 coffeeScript = require "coffee-script"
 icedCoffeeScript = require "iced-coffee-script"
 
-# From http://stackoverflow.com/questions/11142666
-arrayEqual = (a, b) ->
-  a.length is b.length and a.every (elem, i) -> elem is b[i]
-
 # Path to test/traces.
 tracesDir = path.join(path.dirname(__filename), "traces")
 
-# Compare an expected trace with the actual trace of a file. Returns { success:
-# true } on success, and { success: false, expected: ..., actual: ... } on
-# failure.
+# Abbreviate undefined as a slash, for printing variables values in traces.
+abbrevUndefined = (value) ->
+  if value is undefined then "/" else value
+
+# Print out a trace, for comparing expected and actual traces.
+traceToString = (trace) ->
+  str = ""
+  for event in trace
+    line = event.location.first_line
+    type = if event.type is "code" then "     " else event.type
+    activeVars = (name for name of event.vars when event.vars[name].active).join(" ")
+    vars = ("#{name}=#{abbrevUndefined(event.vars[name].value)}" for name of event.vars).join(" ")
+    str += "\n    #{line}: #{type} [#{activeVars}] #{vars}"
+  str
+
+# Compare an expected trace with the actual trace of a file.
 testTrace = (expectedTrace, traceEvents) ->
-  # Evaluate the expected value, which is written in a tiny DSL.
-  enter = (lineNum) -> "enter #{lineNum}"
-  leave = (lineNum) -> "leave #{lineNum}"
-  expected = eval(expectedTrace)
+  success = false
+  if expectedTrace.length is traceEvents.length
+    success = true
+    for idx in [0...traceEvents.length]
+      success = false unless expectedTrace[idx].location.first_line is traceEvents[idx].location.first_line
+      success = false unless expectedTrace[idx].type is traceEvents[idx].type
 
-  # The actual array of events will be mapped over with this function.
-  summarizeEvent = (event) ->
-    if event.type is "code"
-      event.location.first_line
-    else
-      "#{event.type} #{event.location.first_line}"
+      expectedVars = expectedTrace[idx].vars
+      actualVars = traceEvents[idx].vars
+      for name of expectedVars
+        unless actualVars[name]
+          success = false
+          break
 
-  # Put the actual result in the same form as the expected one, so they can be
-  # compared.
-  actual = (summarizeEvent(event) for event in traceEvents)
+        success = false unless expectedVars[name].value is actualVars[name].value
+        success = false unless expectedVars[name].active is actualVars[name].active
 
-  # Compare actual and expected.
-  if arrayEqual(actual, expected)
-    { success: true }
-  else
-    { success: false, expected: expected, actual: actual }
+  success
 
 # Perform all tests for a file. `language` is either 'js' or 'coffee'. Returns
 # true only if all tests passed, otherwise false.
@@ -56,7 +58,7 @@ testFile = (traceFile, language) ->
     if language is "js"
       instrumentJs traceFile, code
     else
-      instrumentCoffee traceFile, code, coffee, bare: true
+      instrumentCoffee traceFile, code, coffee, bare: true, trackVariables: true
 
   # Run instrumented code in sandbox, collecting the events.
   sandbox =
@@ -68,23 +70,34 @@ testFile = (traceFile, language) ->
 
   # Loop through lines, looking for special Trace or Assert comments.
   success = true
-  foundTrace = false
+  expectedTrace = []
+  inTrace = false
   lineNum = 1
   for line in code.split '\n'
-    traceMatch = line.match /^(#|\/\/) Trace: (.+)$/
-    assertMatch = line.match /^(#|\/\/) Assert: (.+)$/
-    if traceMatch
-      foundTrace = true
+    traceMatch = line.match /^(#|\/\/)\s*Trace:\s*$/
+    traceLineMatch = line.match /^(#|\/\/)\s*(\d+):\s*(enter|leave)?\s*\[([^\]]+)\]\s*(.+)$/
+    assertMatch = line.match /^(#|\/\/)\s*Assert: ?(.+)$/
 
-      # Perform the trace test.
-      result = testTrace(traceMatch[2], sandbox.pencilTraceEvents)
-      if result.success
-        process.stdout.write "."
-      else
-        success = false
-        console.log "\nFAILED: test/traces/#{language}/#{traceFile}:#{lineNum}"
-        console.log "  Expected: #{result.expected}"
-        console.log "  Actual:   #{result.actual}"
+    if traceMatch
+      inTrace = true
+    else if inTrace and traceLineMatch
+      activeVars = traceLineMatch[4].split(/\s+/)
+      expectedVars = {}
+      for expr in traceLineMatch[5].split(/\s+/)
+        exprMatch = expr.match /^([a-zA-Z0-9_$]+)=(.+)$/
+        exprMatch[2] = "undefined" if exprMatch[2] is "/"
+        expectedVars[exprMatch[1]] =
+          name: exprMatch[1]
+          value: eval(exprMatch[2])
+          active: activeVars.indexOf(exprMatch[1]) isnt -1
+      expectedEvent =
+        location:
+          first_line: parseInt(traceLineMatch[2], 10)
+        type: traceLineMatch[3] || "code"
+        vars: expectedVars
+      expectedTrace.push expectedEvent
+    else if inTrace and not traceLineMatch
+      inTrace = false
     else if assertMatch
       # Perform the assert test.
       try
@@ -105,12 +118,20 @@ testFile = (traceFile, language) ->
 
     lineNum += 1
 
+  if expectedTrace.length > 0
+    if testTrace(expectedTrace, sandbox.pencilTraceEvents)
+      process.stdout.write "."
+    else
+      success = false
+      console.log "\nFAILED: test/traces/#{language}/#{traceFile}"
+      console.log "  Expected: #{traceToString(expectedTrace)}"
+      console.log "  Actual:   #{traceToString(sandbox.pencilTraceEvents)}"
+  else
+    # Display warning if there wasn't a special Trace comment.
+    console.log "\nWARNING: test/traces/#{language}/#{traceFile} doesn't contain an expected trace."
+
   # Clean up Contextified sandbox.
   sandbox.dispose()
-
-  # Display warning if there wasn't a special Trace comment.
-  if not foundTrace
-    console.log "\nWARNING: test/traces/#{language}/#{traceFile} doesn't contain an expected trace."
 
   # Returns true only if all tests for this file passed.
   success

@@ -81,12 +81,8 @@ class CoffeeScriptInstrumenter
 
     eventObj =
       if @options.trackVariables
-        varsObj = targetNode.pencilTracerScope.toCode()
-        activeVars = "["
-        for ident in @findVariables(targetNode)
-          activeVars += "'#{ident}', "
-        activeVars += "]"
-        "{ location: #{locationObj}, type: '#{eventType}', vars: #{varsObj}, activeVars: #{activeVars} }"
+        varsObj = targetNode.pencilTracerScope.toCode(@findVariables(targetNode))
+        "{ location: #{locationObj}, type: '#{eventType}', vars: #{varsObj} }"
       else
         "{ location: #{locationObj}, type: '#{eventType}' }"
 
