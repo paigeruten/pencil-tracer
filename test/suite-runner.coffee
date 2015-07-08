@@ -9,10 +9,7 @@ assert = require "assert"
 
 {instrumentCoffee} = require "../lib/index"
 coffeeScript = require "coffee-script"
-#icedCoffeeScript = require "iced-coffee-script"
-
-# Path to test/traces.
-testsDir = path.join(path.dirname(__filename), "coffee")
+icedCoffeeScript = require "iced-coffee-script"
 
 bold = red = green = reset = ''
 unless process.env.NODE_DISABLE_COLORS
@@ -24,7 +21,7 @@ unless process.env.NODE_DISABLE_COLORS
 log = (message, color, explanation) ->
   console.log color + message + reset + ' ' + (explanation or '')
 
-runTests = (CoffeeScript) ->
+runTests = (CoffeeScript, testsDir) ->
   CoffeeScript.register()
   startTime   = Date.now()
   currentFile = null
@@ -128,10 +125,12 @@ runTests = (CoffeeScript) ->
       code = instrumentCoffee filename, code.toString(), CoffeeScript, { literate: literate, trackVariables: false }
       mainModule._compile code, mainModule.filename
     catch error
-      process.exit(1)
       failures.push {filename, error}
   return !failures.length
 
-runTests coffeeScript
-process.exit()
+console.log "\nRunning CoffeeScript test suite"
+runTests coffeeScript, path.join(path.dirname(__filename), "suite/coffee")
+
+console.log "\nRunning Iced CoffeeScript test suite"
+runTests icedCoffeeScript, path.join(path.dirname(__filename), "suite/iced")
 
