@@ -33,10 +33,12 @@ task "build", ->
 task "test", ->
   build ->
     mocha = spawn "./node_modules/.bin/mocha", ["--no-colors", "--compilers", "coffee:coffee-script/register", "test/unit"], stdio: "inherit"
-
     mocha.on "exit", (code) ->
       process.exit code if code isnt 0
-      require "./test/traces-runner"
+      suite = spawn "./node_modules/.bin/coffee", ["test/coffee-runner.coffee"], stdio: "inherit"
+      suite.on "exit", (code) ->
+        process.exit code if code isnt 0
+        require "./test/traces-runner"
 
 task "instrument", (options) ->
   code = fs.readFileSync options.file, "utf-8"

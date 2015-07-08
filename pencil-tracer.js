@@ -268,11 +268,17 @@
           };
         })(this));
       } else if (node instanceof this.nodeTypes.Switch) {
-        node.subject = this.createInstrumentedExpr(node, "code", node.subject);
+        if (node.subject) {
+          node.subject = this.createInstrumentedExpr(node, "code", node.subject);
+        }
         ref = node.cases;
         for (i = 0, len = ref.length; i < len; i++) {
           caseClause = ref[i];
-          caseClause[0] = this.createInstrumentedExpr(caseClause[0], "code", caseClause[0]);
+          if (caseClause[0] instanceof Array) {
+            caseClause[0][0] = this.createInstrumentedExpr(caseClause[0][0], "code", caseClause[0][0]);
+          } else {
+            caseClause[0] = this.createInstrumentedExpr(caseClause[0], "code", caseClause[0]);
+          }
         }
         return node.eachChild((function(_this) {
           return function(child) {
@@ -307,8 +313,27 @@
     };
 
     CoffeeScriptInstrumenter.prototype.instrument = function(filename, code) {
-      var ast, compileOptions, result;
-      ast = this.coffee.nodes(code);
+      var ast, csOptions, result, token;
+      csOptions = {
+        runtime: "inline",
+        bare: this.options.bare,
+        header: this.options.header,
+        sourceMap: this.options.sourceMap,
+        literate: this.options.literate
+      };
+      csOptions.referencedVars = (function() {
+        var i, len, ref, results;
+        ref = this.coffee.tokens(code, csOptions);
+        results = [];
+        for (i = 0, len = ref.length; i < len; i++) {
+          token = ref[i];
+          if (token.variable) {
+            results.push(token[1]);
+          }
+        }
+        return results;
+      }).call(this);
+      ast = this.coffee.nodes(code, csOptions);
       if (this.options.trackVariables) {
         this.findScopes(ast);
       }
@@ -316,13 +341,7 @@
       if (this.options.ast) {
         return ast;
       }
-      compileOptions = {
-        runtime: "inline",
-        bare: this.options.bare,
-        header: this.options.header,
-        sourceMap: this.options.sourceMap
-      };
-      result = this.compileAst(ast, code, compileOptions);
+      result = this.compileAst(ast, code, csOptions);
       return result;
     };
 

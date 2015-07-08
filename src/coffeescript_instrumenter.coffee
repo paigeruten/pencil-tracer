@@ -247,10 +247,14 @@ class CoffeeScriptInstrumenter
       node.eachChild (child) =>
         @instrumentTree(child, node)
     else if node instanceof @nodeTypes.Switch
-      node.subject = @createInstrumentedExpr(node, "code", node.subject)
+      if node.subject
+        node.subject = @createInstrumentedExpr(node, "code", node.subject)
 
       for caseClause in node.cases
-        caseClause[0] = @createInstrumentedExpr(caseClause[0], "code", caseClause[0])
+        if caseClause[0] instanceof Array
+          caseClause[0][0] = @createInstrumentedExpr(caseClause[0][0], "code", caseClause[0][0])
+        else
+          caseClause[0] = @createInstrumentedExpr(caseClause[0], "code", caseClause[0])
 
       node.eachChild (child) =>
         @instrumentTree(child, node)
@@ -285,8 +289,19 @@ class CoffeeScriptInstrumenter
   # Instruments some CoffeeScript code, compiles to JavaScript, and returns the
   # JavaScript code.
   instrument: (filename, code) ->
+    csOptions =
+      runtime: "inline" # for Iced CoffeeScript, includes the runtime in the output
+      bare: @options.bare
+      header: @options.header
+      sourceMap: @options.sourceMap
+      literate: @options.literate
+
+    # Get a list of referenced variables so that generated variables won't get
+    # the same name.
+    csOptions.referencedVars = (token[1] for token in @coffee.tokens(code, csOptions) when token.variable)
+
     # Parse the code to get an AST.
-    ast = @coffee.nodes code
+    ast = @coffee.nodes code, csOptions
 
     # Find all variables and scopes.
     @findScopes ast if @options.trackVariables
@@ -298,12 +313,7 @@ class CoffeeScriptInstrumenter
     return ast if @options.ast
 
     # Compile the instrumented AST to JavaScript.
-    compileOptions =
-      runtime: "inline" # for Iced CoffeeScript, includes the runtime in the output
-      bare: @options.bare
-      header: @options.header
-      sourceMap: @options.sourceMap
-    result = @compileAst ast, code, compileOptions
+    result = @compileAst ast, code, csOptions
 
     # Return the JavaScript.
     return result
