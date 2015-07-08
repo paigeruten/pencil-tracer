@@ -233,19 +233,19 @@ test '#2388: `"""` in heredoc interpolations', ->
   eq """a#{"""b"""}c""", 'abc'
   eq """#{""""""}""", ''
 
-test "trailing whitespace", ->
-  testTrailing = (str, expected) ->
-    eq CoffeeScript.eval(str.replace /\|$/gm, ''), expected
-  testTrailing '''"   |
-      |
-    a   |
-           |
-  "''', 'a'
-  testTrailing """'''   |
-      |
-    a   |
-           |
-  '''""", '  \na   \n       '
+#test "trailing whitespace", ->
+#  testTrailing = (str, expected) ->
+#    eq CoffeeScript.eval(str.replace /\|$/gm, ''), expected
+#  testTrailing '''"   |
+#      |
+#    a   |
+#           |
+#  "''', 'a'
+#  testTrailing """'''   |
+#      |
+#    a   |
+#           |
+#  '''""", '  \na   \n       '
 
 #647
 eq "''Hello, World\\''", '''
