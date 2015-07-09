@@ -13,9 +13,15 @@ icedCoffeeScript = require "iced-coffee-script"
 # Path to test/traces.
 tracesDir = path.join(path.dirname(__filename), "traces")
 
-# Abbreviate undefined as a slash, for printing variables values in traces.
-abbrevUndefined = (value) ->
-  if value is undefined then "/" else value
+# Abbreviate undefined as a slash and functions as "<func>", for printing and
+# comparing values in traces.
+abbrevValue = (value) ->
+  if value is undefined
+    "/"
+  else if typeof value is "function"
+    "<func>"
+  else
+    value
 
 # Print out a trace, for comparing expected and actual traces.
 traceToString = (trace) ->
@@ -24,7 +30,7 @@ traceToString = (trace) ->
     line = event.location.first_line
     type = if event.type is "code" then "     " else event.type
     activeVars = (name for name of event.vars when event.vars[name].active).join(" ")
-    vars = ("#{name}=#{abbrevUndefined(event.vars[name].value)}" for name of event.vars).join(" ")
+    vars = ("#{name}=#{abbrevValue(event.vars[name].value)}" for name of event.vars).join(" ")
     str += "\n    #{line}: #{type} [#{activeVars}] #{vars}"
   str
 
@@ -44,7 +50,10 @@ testTrace = (expectedTrace, traceEvents) ->
           success = false
           break
 
-        success = false unless expectedVars[name].value is actualVars[name].value
+        if expectedVars[name].value is "<func>"
+          success = false unless typeof actualVars[name].value is "function"
+        else
+          success = false unless expectedVars[name].value is actualVars[name].value
         success = false unless expectedVars[name].active is actualVars[name].active
 
   success
@@ -68,6 +77,9 @@ testFile = (traceFile, language) ->
   Contextify sandbox
   sandbox.run instrumentedCode
 
+  # Don't collect any more events when the asserts are eval'd later.
+  sandbox.pencilTrace = (event) ->
+
   # Loop through lines, looking for special Trace or Assert comments.
   success = true
   expectedTrace = []
@@ -75,7 +87,7 @@ testFile = (traceFile, language) ->
   lineNum = 1
   for line in code.split '\n'
     traceMatch = line.match /^(#|\/\/)\s*Trace:\s*$/
-    traceLineMatch = line.match /^(#|\/\/)\s*(\d+):\s*(enter|leave)?\s*\[([^\]]+)\]\s*(.+)$/
+    traceLineMatch = line.match /^(#|\/\/)\s*(\d+):\s*(enter|leave)?\s*\[([^\]]*)\]\s*(.*)$/
     assertMatch = line.match /^(#|\/\/)\s*Assert: ?(.+)$/
 
     if traceMatch
@@ -86,6 +98,7 @@ testFile = (traceFile, language) ->
       for expr in traceLineMatch[5].split(/\s+/)
         exprMatch = expr.match /^([a-zA-Z0-9_$]+)=(.+)$/
         exprMatch[2] = "undefined" if exprMatch[2] is "/"
+        exprMatch[2] = "'<func>'" if exprMatch[2] is "<func>"
         expectedVars[exprMatch[1]] =
           name: exprMatch[1]
           value: eval(exprMatch[2])

@@ -7,6 +7,21 @@ if true
     f defer x
   'tail'
 
-# Trace: [1, 4, 5, 6, 7, enter(1), 2, leave(1), 8]
-# Assert: x === 3
+# Trace:
+#   1: before  f=/
+#   1: after   f=<function>
+#   4: before  x=/
+#   4: after   x=0
+#   5: before
+#   5: after
+#   6: before
+#   6: after
+#   7: before  f=<function> x=/
+#     1: enter   cb=<function>
+#     2: before  cb=<function>
+#     2: after   cb=<function>
+#     1: leave   return=/
+#   7: after   f=<function> x=3
+#   8: before
+#   8: after
 

@@ -7,6 +7,17 @@ class Person
 person = new Person 'Jeremy', 'Ruten'
 name = person.name()
 
-# Trace: [1, 7, enter(2), leave(2), 8, enter(4), 5, leave(4)]
-# Assert: name === 'Jeremy Ruten'
+# Trace:
+#   1: before  Person=/
+#   1: after   Person=<function>
+#   7: before  Person=<function> person=/
+#     2: enter   firstName='Jeremy' lastName='Ruten'
+#     2: leave   return=/
+#   7: after   Person=<function> person=<object>
+#   8: before  person=<object> name=/
+#     4: enter
+#     5: before  @firstName='Jeremy' @lastName='Ruten'
+#     5: after   @firstName='Jeremy' @lastName='Ruten'
+#     4: leave   return='Jeremy Ruten'
+#   8: after   person=<object> name='Jeremy Ruten'
 

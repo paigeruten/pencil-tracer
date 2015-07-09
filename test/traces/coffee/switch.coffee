@@ -4,19 +4,48 @@ shape = (sides) ->
       'invalid input'
     when 3
       'triangle'
-    when 4
-      'rectangle'
     else
       'too complicated'
 
 shape 1
 shape 3
 shape 4
-shape 5
 
-# Trace: [1, 12, enter(1), 2, 3, 4, leave(1), 13, enter(1), 2, 3, 5, 6, leave(1), 14, enter(1), 2, 3, 5, 7, 8, leave(1), 15, enter(1), 2, 3, 5, 7, 10, leave(1)]
-# Assert: shape(1) === 'invalid input'
-# Assert: shape(3) === 'triangle'
-# Assert: shape(4) === 'rectangle'
-# Assert: shape(5) === 'too complicated'
+# Trace:
+#   1:  before  shape=/
+#   1:  after   shape=<function>
+#   10: before  shape=<function>
+#     1: enter   sides=1
+#     2: before  sides=1
+#     2: after   sides=1
+#     3: before
+#     3: after
+#     4: before
+#     4: after
+#     1: leave   return='invalid input'
+#   10: after   shape=<function>
+#   11: before  shape=<function>
+#     1: enter   sides=3
+#     2: before  sides=3
+#     2: after   sides=3
+#     3: before
+#     3: after
+#     5: before
+#     5: after
+#     6: before
+#     6: after
+#     1: leave   return='triangle'
+#   11: after   shape=<function>
+#   12: before  shape=<function>
+#     1: enter   sides=4
+#     2: before  sides=4
+#     2: after   sides=4
+#     3: before
+#     3: after
+#     5: before
+#     5: after
+#     8: before
+#     8: after
+#     1: leave   return='too complicated'
+#   12: after   shape=<function>
 
