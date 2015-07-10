@@ -1,5 +1,3 @@
-{Scope} = require "./scope"
-
 class CoffeeScriptInstrumenter
   # The constructor takes the CoffeeScript module to use to parse the code,
   # generate instrumented code, and compile the result to JavaScript. This lets
@@ -79,12 +77,7 @@ class CoffeeScriptInstrumenter
     locationObj += " last_line: #{locationData.last_line + 1},"
     locationObj += " last_column: #{locationData.last_column + 1} }"
 
-    eventObj =
-      if @options.trackVariables
-        varsObj = targetNode.pencilTracerScope.toCode(@findVariables(targetNode))
-        "{ location: #{locationObj}, type: '#{eventType}', vars: #{varsObj} }"
-      else
-        "{ location: #{locationObj}, type: '#{eventType}' }"
+    eventObj = "{ location: #{locationObj}, type: '#{eventType}', vars: {} }"
 
     # Create the node from a string of CoffeeScript.
     instrumentedNode =
@@ -96,7 +89,7 @@ class CoffeeScriptInstrumenter
   createInstrumentedExpr: (targetNode, eventType, originalExpr) ->
     parensBlock = @coffee.nodes("(0)").expressions[0]
     parensBlock.base.body.expressions = []
-    parensBlock.base.body.expressions[0] = @createInstrumentedNode(targetNode, "before")
+    parensBlock.base.body.expressions[0] = @createInstrumentedNode(targetNode, eventType)
     parensBlock.base.body.expressions[1] = originalExpr
     parensBlock
 
@@ -185,28 +178,6 @@ class CoffeeScriptInstrumenter
       # assignment. Here we'll delegate to findVariables(), as it will
       # recursively find all identifiers in the structure.
       return @findVariables(name)
-
-  findScopes: (node, parent=null, scopes=[], depth=0) ->
-    if node instanceof @nodeTypes.Block
-      depth += 1
-      scopes[depth] = new Scope(scopes[depth - 1])
-
-      if parent instanceof @nodeTypes.Code
-        for param in parent.params
-          for arg in @findArguments(param)
-            scopes[depth].add arg, "argument"
-
-    node.pencilTracerScope = scopes[depth]
-
-    if node instanceof @nodeTypes.Assign and node.context isnt "object"
-      if node.variable.base instanceof @nodeTypes.Literal
-        scopes[depth].add node.variable.base.value, "variable"
-
-    node.eachChild (child) =>
-      @findScopes(child, node, scopes, depth)
-
-    if node.icedContinuationBlock?
-      @findScopes(node.icedContinuationBlock, node, scopes, depth)
 
   # Instruments the AST recursively. Arguments:
   #   node: the current node of the AST
@@ -302,9 +273,6 @@ class CoffeeScriptInstrumenter
 
     # Parse the code to get an AST.
     ast = @coffee.nodes code, csOptions
-
-    # Find all variables and scopes.
-    @findScopes ast if @options.trackVariables
 
     # Instrument the whole AST.
     @instrumentTree ast
