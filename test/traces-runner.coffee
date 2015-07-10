@@ -161,24 +161,18 @@ testFile = (traceFile, language) ->
 
   expectedTrace = []
   inTrace = false
-  lineNum = 1
   for line in code.split '\n'
     traceMatch = line.match /^(#|\/\/)\s*Trace:\s*$/
-    event = parseTraceLine(line)
 
-    if traceMatch
-      inTrace = true
-    else if inTrace and event
-      expectedTrace.push event
-    else if inTrace and not event
-      inTrace = false
-
-    lineNum += 1
-
-  # # #
-  console.log traceToString(expectedTrace)
-  return true
-  # # #
+    if inTrace
+      event = parseTraceLine(line)
+      if event
+        expectedTrace.push event
+      else
+        inTrace = false
+    else
+      if line.match /^(#|\/\/)\s*Trace:\s*$/
+        inTrace = true
 
   success = true
   if expectedTrace.length > 0
@@ -235,5 +229,4 @@ process.stdout.write "\n"
 
 # Return non-zero exit code if any tests failed.
 process.exit 1 if anyFailures
-###
 

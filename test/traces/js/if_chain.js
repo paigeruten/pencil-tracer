@@ -12,8 +12,35 @@ message(6);
 message(13);
 message(20);
 
-// Trace: [1, 11, enter(1), 2, 3, leave(1), 12, enter(1), 2, 4, 5, leave(1), 13, enter(1), 2, 4, 7, leave(1)]
-// Assert: message(6) === 'good morning'
-// Assert: message(13) === 'good afternoon'
-// Assert: message(20) === 'good evening'
+// Trace:
+//   1:  before  message=/
+//   1:  after   message=<function>
+//   11: before  message=<function>
+//     1: enter  hour=6
+//     2: before  hour=6
+//     2: after   hour=6
+//     3: before
+//     3: after
+//     1: leave   return='good morning'
+//   11: after   message=<function>
+//   12: before  message=<function>
+//     1: enter   hour=13
+//     2: before  hour=13
+//     2: after   hour=13
+//     4: before  hour=13
+//     4: after   hour=13
+//     5: before
+//     5: after
+//     1: leave   return='good afternoon'
+//   12: after   message=<function>
+//   13: before  message=<function>
+//     1: enter   hour=20
+//     2: before  hour=20
+//     2: after   hour=20
+//     4: before  hour=20
+//     4: after   hour=20
+//     7: before
+//     7: after
+//     1: leave   return='good evening'
+//   13: after   message=<function>
 
