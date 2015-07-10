@@ -70,7 +70,7 @@ Here is what the program looks like after being instrumented:
 pencilTrace({type: 'before', location: {first_line: 1, ...}, vars: {square: square}});
 var square = function (x) {
   var _returnVal, _thrownErr;
-  pencilTrace({type: 'enter', location: {first_line: 1, ...}, args: {x: x}});
+  pencilTrace({type: 'enter', location: {first_line: 1, ...}, vars: {x: x}});
   try {
     pencilTrace({type: 'before', location: {first_line: 2, ...}, vars: {x: x}});
     _returnVal = x * x;
@@ -114,7 +114,7 @@ This would produce the following trace of the program above:
 [{type: 'before', location: {first_line: 1, ...}, vars: {square: undefined}},
  {type: 'after',  location: {first_line: 1, ...}, vars: {square: <function>}},
  {type: 'before', location: {first_line: 5, ...}, vars: {y: undefined, square: <function>}},
- {type: 'enter',  location: {first_line: 1, ...}, args: {x: 3}},
+ {type: 'enter',  location: {first_line: 1, ...}, vars: {x: 3}},
  {type: 'before', location: {first_line: 2, ...}, vars: {x: 3}},
  {type: 'after',  location: {first_line: 2, ...}, vars: {x: 3}},
  {type: 'leave',  location: {first_line: 1, ...}, returnVal: 9},
@@ -177,7 +177,7 @@ be available in `vars`.
 
 #### `'enter'` Event
 
-Triggered at the beginning of a body of a function. An `args` property contains
+Triggered at the beginning of a body of a function. The `vars` property contains
 argument names and values. The `location` will give the start and end of the
 entire function body.
 
@@ -185,7 +185,7 @@ entire function body.
 {
   type: 'enter',
   location: { ... },
-  args: { ... }
+  vars: { ... }
 }
 ```
 

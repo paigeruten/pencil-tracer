@@ -77,7 +77,16 @@ class CoffeeScriptInstrumenter
     locationObj += " last_line: #{locationData.last_line + 1},"
     locationObj += " last_column: #{locationData.last_column + 1} }"
 
-    eventObj = "{ location: #{locationObj}, type: '#{eventType}', vars: {} }"
+    extra =
+      switch eventType
+        when "before", "after"
+          "vars: {" + (name + ": " + name for name in @findVariables(targetNode)) + "}"
+        when "enter"
+          "vars: {" + (name + ": " + name for name in @findArguments(targetNode)) + "}"
+        when "leave"
+          "returnVal: \"TEST\""
+
+    eventObj = "{ location: #{locationObj}, type: '#{eventType}', #{extra} }"
 
     # Create the node from a string of CoffeeScript.
     instrumentedNode =
@@ -92,6 +101,37 @@ class CoffeeScriptInstrumenter
     parensBlock.base.body.expressions[0] = @createInstrumentedNode(targetNode, eventType)
     parensBlock.base.body.expressions[1] = originalExpr
     parensBlock
+
+  findVariables: (node, parent=null, vars=[]) ->
+    if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
+      # Skip properties in object literals, like the 'a' in {a: b}. That's not
+      # a variable (but 'b' is).
+      skip = parent instanceof @nodeTypes.Assign and parent.context is "object" and parent.variable is node
+      if not skip
+        if vars.indexOf(node.base.value) is -1
+          vars.push node.base.value
+
+    node.eachChild (child) =>
+      @findVariables(child, node, vars) unless child instanceof @nodeTypes.Block
+
+    vars
+
+  findArguments: (codeNode) ->
+    throw new Error("findArguments() expects a Code node") unless codeNode instanceof @nodeTypes.Code
+
+    args = []
+    for paramNode in codeNode.params
+      name = paramNode.name
+      if name instanceof @nodeTypes.Literal
+        # A normal argument.
+        args.push name.value
+      else if name instanceof @nodeTypes.Value
+        # The argument is an @-variable, we won't deal with those for now.
+      else
+        # Otherwise the argument is an array or object, for destructuring
+        # assignment. Here we'll delegate to findVariables(), as it will
+        # recursively find all identifiers in the structure.
+        args.push.apply(args, @findVariables(name))
 
   shouldSkipNode: (node) ->
     node.pencilTracerInstrumented or
@@ -148,36 +188,6 @@ class CoffeeScriptInstrumenter
       answer
     else
       js
-
-  findVariables: (node, parent=null, vars=[]) ->
-    if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
-      # Skip properties in object literals, like the 'a' in {a: b}. That's not
-      # a variable (but 'b' is).
-      skip = parent instanceof @nodeTypes.Assign and parent.context is "object" and parent.variable is node
-      if not skip
-        if vars.indexOf(node.base.value) is -1
-          vars.push node.base.value
-
-    node.eachChild (child) =>
-      @findVariables(child, node, vars)
-
-    vars
-
-  findArguments: (paramNode) ->
-    throw new Error("findArguments() expects a Param node") unless paramNode instanceof @nodeTypes.Param
-
-    name = paramNode.name
-    if name instanceof @nodeTypes.Literal
-      # A normal argument.
-      return [name.value]
-    else if name instanceof @nodeTypes.Value
-      # The argument is an @-variable, we won't deal with those for now.
-      return []
-    else
-      # Otherwise the argument is an array or object, for destructuring
-      # assignment. Here we'll delegate to findVariables(), as it will
-      # recursively find all identifiers in the structure.
-      return @findVariables(name)
 
   # Instruments the AST recursively. Arguments:
   #   node: the current node of the AST

@@ -75,14 +75,19 @@ parseTraceLine = (line) ->
         event.thrownErr = vars.throw
   event
 
-abbrevValue = (val) ->
+abbrevValue = (val, isActual) ->
   if typeof val is "undefined"
     "/"
+  else if typeof val is "function"
+    "<function>"
+  else if isActual
+    JSON.stringify(val)
   else
     val
 
 # Print out a trace, for comparing expected and actual traces.
 traceToString = (trace) ->
+  isActual = trace.length > 0 && typeof trace[0].location.first_column isnt "undefined"
   str = ""
   for event in trace
     line = "#{event.location.first_line}: "
@@ -98,7 +103,7 @@ traceToString = (trace) ->
             { "return": event.returnVal }
           else
             { "throw": event.thrownErr }
-    varsStr = ("#{name}=#{abbrevValue(vars[name])}" for name of vars).join(" ")
+    varsStr = ("#{name}=#{abbrevValue(vars[name], isActual)}" for name of vars).join(" ")
     str += "\n    #{line}#{type}  #{varsStr}"
   str
 
