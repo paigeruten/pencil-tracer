@@ -96,7 +96,7 @@ class CoffeeScriptInstrumenter
   createInstrumentedExpr: (targetNode, eventType, originalExpr) ->
     parensBlock = @coffee.nodes("(0)").expressions[0]
     parensBlock.base.body.expressions = []
-    parensBlock.base.body.expressions[0] = @createInstrumentedNode(targetNode, "code")
+    parensBlock.base.body.expressions[0] = @createInstrumentedNode(targetNode, "before")
     parensBlock.base.body.expressions[1] = originalExpr
     parensBlock
 
@@ -216,15 +216,15 @@ class CoffeeScriptInstrumenter
     return if @shouldSkipNode(node)
 
     if node instanceof @nodeTypes.Block and parent not instanceof @nodeTypes.Parens and parent not instanceof @nodeTypes.Class
-      # Instrument children of Blocks with normal code events.
+      # Instrument children of Blocks with before events.
       children = node.expressions
       childIndex = 0
       while childIndex < children.length
         expression = children[childIndex]
 
         if @shouldInstrumentNode(expression)
-          # Instrument this line with a normal code event.
-          instrumentedNode = @createInstrumentedNode(expression, "code")
+          # Instrument this line with a before event.
+          instrumentedNode = @createInstrumentedNode(expression, "before")
 
           # Insert it before the node it corresponds to, and correct the childIndex.
           children.splice(childIndex, 0, instrumentedNode)
@@ -238,28 +238,28 @@ class CoffeeScriptInstrumenter
       # Instrument the first line of for loops, so that the for loop is
       # traced for each iteration.
       if parent instanceof @nodeTypes.For
-        instrumentedNode = @createInstrumentedNode(parent, "code")
+        instrumentedNode = @createInstrumentedNode(parent, "before")
         children.unshift(instrumentedNode)
 
     else if node instanceof @nodeTypes.While
-      node.condition = @createInstrumentedExpr(node, "code", node.condition)
+      node.condition = @createInstrumentedExpr(node, "before", node.condition)
 
       node.eachChild (child) =>
         @instrumentTree(child, node)
     else if node instanceof @nodeTypes.Switch
       if node.subject
-        node.subject = @createInstrumentedExpr(node, "code", node.subject)
+        node.subject = @createInstrumentedExpr(node, "before", node.subject)
 
       for caseClause in node.cases
         if caseClause[0] instanceof Array
-          caseClause[0][0] = @createInstrumentedExpr(caseClause[0][0], "code", caseClause[0][0])
+          caseClause[0][0] = @createInstrumentedExpr(caseClause[0][0], "before", caseClause[0][0])
         else
-          caseClause[0] = @createInstrumentedExpr(caseClause[0], "code", caseClause[0])
+          caseClause[0] = @createInstrumentedExpr(caseClause[0], "before", caseClause[0])
 
       node.eachChild (child) =>
         @instrumentTree(child, node)
     else if node instanceof @nodeTypes.If
-      node.condition = @createInstrumentedExpr(node.condition, "code", node.condition)
+      node.condition = @createInstrumentedExpr(node.condition, "before", node.condition)
 
       node.eachChild (child) =>
         @instrumentTree(child, node)
