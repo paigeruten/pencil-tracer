@@ -5,6 +5,7 @@
 fs = require "fs"
 path = require "path"
 Contextify = require "contextify"
+{isEqual} = require "underscore"
 
 {instrumentJs, instrumentCoffee} = require "../lib/index"
 coffeeScript = require "coffee-script"
@@ -13,50 +14,131 @@ icedCoffeeScript = require "iced-coffee-script"
 # Path to test/traces.
 tracesDir = path.join(path.dirname(__filename), "traces")
 
-# Abbreviate undefined as a slash and functions as "<func>", for printing and
-# comparing values in traces.
-abbrevValue = (value) ->
-  if value is undefined
+# Parse a string like "x=1 f=<function> o={ary: [1, 2, 3]}" into an object like
+# { x: "1", f: "<function>", o: "{ary: [1, 2, 3]}" }.
+parseVars = (str) ->
+  vars = {}
+  while str.length > 0
+    matches = str.match /^([a-zA-Z0-9_$]+)=/
+    return false unless matches
+
+    varName = matches[1]
+    str = str.slice(matches[0].length)
+
+    openers = "([{<"
+    closers = ")]}>"
+    quotes = "'\""
+    if str[0] in openers + quotes
+      stack = str[0]
+      i = 1
+      while stack.length > 0
+        return false if i is str.length
+        if str[i] in openers or (str[i] in quotes and stack[stack.length - 1] isnt str[i])
+          stack += str[i]
+        else if str[i] in closers or (str[i] in quotes and stack[stack.length - 1] is str[i])
+          stack = stack.slice(0, stack.length - 1)
+        i += 1
+      vars[varName] = str.slice(0, i)
+      str = str.slice(i)
+    else
+      valueMatch = str.match /^\S+/
+      return false unless valueMatch
+      vars[varName] = valueMatch[0]
+      str = str.slice(valueMatch[0].length)
+
+    spaceMatch = str.match /^\s*/
+    str = str.slice(spaceMatch[0].length)
+
+  vars
+
+# Parse a string like "# 1: before  x=1 y=2" into an event object like
+# { type: "before", location: { first_line: 1 }, vars: { x: "1", y: "2" } }.
+parseTraceLine = (line) ->
+  matches = line.match /^(#|\/\/)\s*(\d+):\s*(before|after|enter|leave)\s*(.*)$/
+  return false unless matches
+
+  vars = parseVars(matches[4])
+  return false if vars is false
+
+  event = {}
+  event.type = matches[3]
+  event.location = { first_line: parseInt(matches[2], 10) }
+  switch event.type
+    when "before", "after"
+      event.vars = vars
+    when "enter"
+      event.args = vars
+    when "leave"
+      if "return" of vars
+        event.returnVal = vars.return
+      else
+        event.thrownErr = vars.throw
+  event
+
+abbrevValue = (val) ->
+  if typeof val is "undefined"
     "/"
-  else if typeof value is "function"
-    "<func>"
   else
-    value
+    val
 
 # Print out a trace, for comparing expected and actual traces.
 traceToString = (trace) ->
   str = ""
   for event in trace
-    line = event.location.first_line
-    type = if event.type is "code" then "     " else event.type
-    activeVars = (name for name of event.vars when event.vars[name].active).join(" ")
-    vars = ("#{name}=#{abbrevValue(event.vars[name].value)}" for name of event.vars).join(" ")
-    str += "\n    #{line}: #{type} [#{activeVars}] #{vars}"
+    line = "#{event.location.first_line}: "
+    line += " " unless line.length is 4
+    type = event.type
+    type += " " unless type is "before"
+    vars =
+      switch event.type
+        when "before", "after" then event.vars
+        when "enter" then event.args
+        when "leave"
+          if "returnVal" of event
+            { "return": event.returnVal }
+          else
+            { "throw": event.thrownErr }
+    varsStr = ("#{name}=#{abbrevValue(vars[name])}" for name of vars).join(" ")
+    str += "\n    #{line}#{type}  #{varsStr}"
   str
 
+varsEq = (expected, actual) ->
+  for name of expected
+    return false unless name of actual
+
+    expectedVal = expected[name]
+    expectedVal = "<undefined>" if expectedVal is "/"
+    if expectedVal[0] is "<"
+      expectedType = expectedVal.slice(1, expectedVal.length - 1)
+      return false unless typeof actual[name] is expectedType
+    else
+      expectedVal = eval(expectedVal)
+      return false unless isEqual(expectedVal, actual[name])
+
+  for name of actual
+    return false unless name of expected
+
+  true
+
+eventEq = (expected, actual) ->
+  return false unless expected.type is actual.type
+  return false unless expected.location.first_line is actual.location.first_line
+
+  switch expected.type
+    when "before", "after"
+      varsEq(expected.vars, actual.vars)
+    when "enter"
+      varsEq(expected.args, actual.args)
+    when "leave"
+      varsEq({returnVal: expected.returnVal, thrownErr: expected.thrownErr},
+             {returnVal: actual.returnVal, thrownErr: actual.thrownErr})
+
 # Compare an expected trace with the actual trace of a file.
-testTrace = (expectedTrace, traceEvents) ->
-  success = false
-  if expectedTrace.length is traceEvents.length
-    success = true
-    for idx in [0...traceEvents.length]
-      success = false unless expectedTrace[idx].location.first_line is traceEvents[idx].location.first_line
-      success = false unless expectedTrace[idx].type is traceEvents[idx].type
-
-      expectedVars = expectedTrace[idx].vars
-      actualVars = traceEvents[idx].vars
-      for name of expectedVars
-        unless actualVars[name]
-          success = false
-          break
-
-        if expectedVars[name].value is "<func>"
-          success = false unless typeof actualVars[name].value is "function"
-        else
-          success = false unless expectedVars[name].value is actualVars[name].value
-        success = false unless expectedVars[name].active is actualVars[name].active
-
-  success
+traceEq = (expected, actual) ->
+  return false unless expected.length is actual.length
+  for i in [0...expected.length]
+    return false unless eventEq(expected[i], actual[i])
+  true
 
 # Perform all tests for a file. `language` is either 'js' or 'coffee'. Returns
 # true only if all tests passed, otherwise false.
@@ -77,62 +159,30 @@ testFile = (traceFile, language) ->
   Contextify sandbox
   sandbox.run instrumentedCode
 
-  # Don't collect any more events when the asserts are eval'd later.
-  sandbox.pencilTrace = (event) ->
-
-  # Loop through lines, looking for special Trace or Assert comments.
-  success = true
   expectedTrace = []
   inTrace = false
   lineNum = 1
   for line in code.split '\n'
     traceMatch = line.match /^(#|\/\/)\s*Trace:\s*$/
-    traceLineMatch = line.match /^(#|\/\/)\s*(\d+):\s*(enter|leave)?\s*\[([^\]]*)\]\s*(.*)$/
-    assertMatch = line.match /^(#|\/\/)\s*Assert: ?(.+)$/
+    event = parseTraceLine(line)
 
     if traceMatch
       inTrace = true
-    else if inTrace and traceLineMatch
-      activeVars = traceLineMatch[4].split(/\s+/)
-      expectedVars = {}
-      for expr in traceLineMatch[5].split(/\s+/)
-        exprMatch = expr.match /^([a-zA-Z0-9_$]+)=(.+)$/
-        exprMatch[2] = "undefined" if exprMatch[2] is "/"
-        exprMatch[2] = "'<func>'" if exprMatch[2] is "<func>"
-        expectedVars[exprMatch[1]] =
-          name: exprMatch[1]
-          value: eval(exprMatch[2])
-          active: activeVars.indexOf(exprMatch[1]) isnt -1
-      expectedEvent =
-        location:
-          first_line: parseInt(traceLineMatch[2], 10)
-        type: traceLineMatch[3] || "code"
-        vars: expectedVars
-      expectedTrace.push expectedEvent
-    else if inTrace and not traceLineMatch
+    else if inTrace and event
+      expectedTrace.push event
+    else if inTrace and not event
       inTrace = false
-    else if assertMatch
-      # Perform the assert test.
-      try
-        # Use a with statement to make local variables of the program available
-        # to the assert expression.
-        result = eval "with (sandbox) { #{assertMatch[2]} }"
-        if result
-          process.stdout.write "."
-        else
-          success = false
-          console.log "\nFAILED: test/traces/#{language}/#{traceFile}:#{lineNum}"
-          console.log "  Assertion: #{assertMatch[2]}"
-          console.log "  Result:    #{result}"
-      catch err
-        success = false
-        console.log "\nFAILED: test/traces/#{language}/#{traceFile}:#{lineNum}"
-        console.log "  Exception: #{err}"
 
     lineNum += 1
 
+  # # #
+  console.log traceToString(expectedTrace)
+  return true
+  # # #
+
+  success = true
   if expectedTrace.length > 0
-    if testTrace(expectedTrace, sandbox.pencilTraceEvents)
+    if traceEq(expectedTrace, sandbox.pencilTraceEvents)
       process.stdout.write "."
     else
       success = false
@@ -185,4 +235,5 @@ process.stdout.write "\n"
 
 # Return non-zero exit code if any tests failed.
 process.exit 1 if anyFailures
+###
 

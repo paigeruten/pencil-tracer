@@ -31,6 +31,7 @@
     "iced-coffee-script": "^1.8.0-d",
     "iced-runtime": "^1.0.2",
     "mocha": "^2.2.5",
-    "should": "^7.0.1"
+    "should": "^7.0.1",
+    "underscore": "^1.8.3"
   }
 }
