@@ -14,17 +14,37 @@ STATEMENTS_WITH_BODIES = [
 ]
 
 class JavaScriptInstrumenter
+  constructor: (@options) ->
+    @options.traceFunc ?= "pencilTrace"
+
+  findVariables: (node) ->
+    []
+
+  findArguments: (node) ->
+    []
+
   # Returns javascript code that calls the trace function, passing in the event
   # object.
-  traceCall: (traceFunc, location, eventType) ->
+  traceCall: (targetNode, eventType) ->
+    loc = targetNode.loc
+
     # Give the column numbers as 1-indexed values, instead of 0-indexed. Line
     # numbers are already 1-indexed.
-    locationObj = "{ first_line: #{location.start.line},"
-    locationObj += " first_column: #{location.start.column + 1},"
-    locationObj += " last_line: #{location.end.line},"
-    locationObj += " last_column: #{location.end.column + 1} }"
+    locationObj = "{ first_line: #{loc.start.line},"
+    locationObj += " first_column: #{loc.start.column + 1},"
+    locationObj += " last_line: #{loc.end.line},"
+    locationObj += " last_column: #{loc.end.column + 1} }"
 
-    "#{traceFunc}({ location: #{locationObj}, type: '#{eventType}' })"
+    extra =
+      switch eventType
+        when "before", "after"
+          "vars: {" + ("#{name}: (typeof #{name} === 'undefined' ? void 0 : #{name})" for name in @findVariables(targetNode)) + "}"
+        when "enter"
+          "vars: {" + ("#{name}: #{name}" for name in @findArguments(targetNode)) + "}"
+        when "leave"
+          "returnVal: 'TEST'"
+
+    "#{@options.traceFunc}({ location: #{locationObj}, type: '#{eventType}', #{extra} })"
 
   # This checks whether a node is a single statement acting as the body of
   # another statement, e.g. the "i++;" in "while (i < 10) i++;". In that case,
@@ -42,53 +62,51 @@ class JavaScriptInstrumenter
     not (node.parent.type is "ForStatement" and node.parent.init is node) and
     not (node.parent.type is "ForInStatement" and node.parent.left is node)
 
-  instrument: (filename, code, options = {}) ->
-    traceFunc = options.traceFunc ? "pencilTrace"
-
+  instrument: (filename, code) ->
     result = falafel code, locations: true, (node) =>
       switch node.type
         when "EmptyStatement", "ExpressionStatement", "BreakStatement", "ContinueStatement", "ReturnStatement", "ThrowStatement", "DebuggerStatement", "FunctionDeclaration"
-          code = @traceCall(traceFunc, node.loc, "code")
+          code = @traceCall(node, "before")
           node.update "#{code}; #{node.source()}"
 
           if node.parent.type in ["DoWhileStatement", "ForInStatement"]
-            code = @traceCall(traceFunc, node.parent.loc, "code")
+            code = @traceCall(node.parent, "before")
             node.update "#{code}; #{node.source()}"
 
         when "VariableDeclaration"
           if node.parent.type not in ["ForStatement", "ForInStatement"]
-            code = @traceCall(traceFunc, node.loc, "code")
+            code = @traceCall(node, "before")
             node.update "#{code}; #{node.source()}"
 
         when "ForStatement"
-          code = @traceCall(traceFunc, node.init?.loc || node.loc, "code")
+          code = @traceCall(node.init || node, "before")
           node.update "#{code}; #{node.source()}"
 
         when "BlockStatement"
           if node.parent.type in ["FunctionDeclaration", "FunctionExpression"]
-            enter = @traceCall(traceFunc, node.loc, "enter")
-            leave = @traceCall(traceFunc, node.loc, "leave")
+            enter = @traceCall(node, "enter")
+            leave = @traceCall(node, "leave")
             node.update "{ #{enter}; try #{node.source()} finally { #{leave}; } }"
 
           if node.parent.type is "TryStatement"
             if node.parent.block is node
-              code = @traceCall(traceFunc, node.parent.loc, "code")
+              code = @traceCall(node.parent, "before")
               node.update "{ #{code}; #{node.source()} }"
             else if node.parent.finalizer is node
-              code = @traceCall(traceFunc, node.loc, "code")
+              code = @traceCall(node, "before")
               node.update "{ #{code}; #{node.source()} }"
 
           if node.parent.type is "CatchClause"
-            code = @traceCall(traceFunc, node.parent.loc, "code")
+            code = @traceCall(node.parent, "before")
             node.update "{ #{code}; #{node.source()} }"
 
           if node.parent.type in ["DoWhileStatement", "ForInStatement"]
-            code = @traceCall(traceFunc, node.parent.loc, "code")
+            code = @traceCall(node.parent, "before")
             node.update "{ #{code}; #{node.source()} }"
 
         when "ThisExpression", "ArrayExpression", "ObjectExpression", "FunctionExpression", "SequenceExpression", "UnaryExpression", "BinaryExpression", "AssignmentExpression", "UpdateExpression", "LogicalExpression", "ConditionalExpression", "CallExpression", "NewExpression", "MemberExpression", "Identifier", "Literal", "RegExpLiteral"
           if node.parent.type in ["IfStatement", "WithStatement", "SwitchStatement", "WhileStatement", "DoWhileStatement", "ForStatement", "SwitchCase"]
-            code = @traceCall(traceFunc, node.loc, "code")
+            code = @traceCall(node, "before")
             node.update "#{code},(#{node.source()})"
 
       # Our instrumented code may have turned code like "if (cond) x();" into
@@ -101,6 +119,6 @@ class JavaScriptInstrumenter
     return result.toString()
 
 exports.instrumentJs = (filename, code, options = {}) ->
-  instrumenter = new JavaScriptInstrumenter()
-  instrumenter.instrument filename, code, options
+  instrumenter = new JavaScriptInstrumenter(options)
+  instrumenter.instrument filename, code
 

@@ -84,7 +84,7 @@ class CoffeeScriptInstrumenter
         when "enter"
           "vars: {" + ("#{name}: #{name}" for name in @findArguments(targetNode)) + "}"
         when "leave"
-          "returnVal: \"TEST\""
+          "returnVal: 'TEST'"
 
     eventObj = "{ location: #{locationObj}, type: '#{eventType}', #{extra} }"
 
