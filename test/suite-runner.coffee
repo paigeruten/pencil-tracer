@@ -121,7 +121,7 @@ runTests = (CoffeeScript, testsDir) ->
       mainModule.filename = fs.realpathSync filename
       mainModule.moduleCache and= {}
       mainModule.paths = require("module")._nodeModulePaths fs.realpathSync(testsDir)
-      code = instrumentCoffee filename, code.toString(), CoffeeScript, { literate: literate, trackVariables: false }
+      code = instrumentCoffee filename, code.toString(), CoffeeScript, { literate: literate }
       mainModule._compile code, mainModule.filename
     catch error
       failures.push {filename, error}
@@ -129,8 +129,9 @@ runTests = (CoffeeScript, testsDir) ->
 
 if coffeeScript.iced?
   console.log "\nRunning Iced CoffeeScript test suite"
+  runTests coffeeScript, path.join(path.dirname(__filename), "suite/iced")
 else
   console.log "\nRunning CoffeeScript test suite"
+  runTests coffeeScript, path.join(path.dirname(__filename), "suite/coffee")
 
-runTests coffeeScript, path.join(path.dirname(__filename), "suite/coffee")
 

@@ -86,7 +86,7 @@
               results = [];
               for (i = 0, len = ref.length; i < len; i++) {
                 name = ref[i];
-                results.push(name + ": " + name);
+                results.push(name + ": (if typeof " + name + " is 'undefined' then undefined else " + name + ")");
               }
               return results;
             }).call(this)) + "}";

@@ -80,9 +80,9 @@ class CoffeeScriptInstrumenter
     extra =
       switch eventType
         when "before", "after"
-          "vars: {" + (name + ": " + name for name in @findVariables(targetNode)) + "}"
+          "vars: {" + ("#{name}: (if typeof #{name} is 'undefined' then undefined else #{name})" for name in @findVariables(targetNode)) + "}"
         when "enter"
-          "vars: {" + (name + ": " + name for name in @findArguments(targetNode)) + "}"
+          "vars: {" + ("#{name}: #{name}" for name in @findArguments(targetNode)) + "}"
         when "leave"
           "returnVal: \"TEST\""
 
@@ -103,7 +103,7 @@ class CoffeeScriptInstrumenter
     parensBlock
 
   findVariables: (node, parent=null, vars=[]) ->
-    return [] unless node
+    return [] if not node
 
     if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
       # Skip properties in object literals, like the 'a' in {a: b}. That's not
