@@ -38,7 +38,10 @@ task "test", ->
       suite = spawn "./node_modules/.bin/coffee", ["test/suite-runner.coffee"], stdio: "inherit"
       suite.on "exit", (code) ->
         process.exit code if code isnt 0
-        require "./test/traces-runner"
+        icedSuite = spawn "./node_modules/.bin/coffee", ["test/suite-runner.coffee", "iced"], stdio: "inherit"
+        icedSuite.on "exit", (code) ->
+          process.exit code if code isnt 0
+          require "./test/traces-runner"
 
 task "instrument", (options) ->
   code = fs.readFileSync options.file, "utf-8"

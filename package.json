@@ -22,16 +22,16 @@
     "lib": "./lib"
   },
   "dependencies": {
-    "falafel": "^1.1.0"
+    "falafel": "^1.2.0"
   },
   "devDependencies": {
-    "browserify": "^10.2.4",
-    "coffee-script": "^1.9.1",
+    "browserify": "^10.2.6",
+    "coffee-script": "^1.9.3",
     "contextify": "^0.1.14",
     "iced-coffee-script": "^1.8.0-d",
     "iced-runtime": "^1.0.2",
     "mocha": "^2.2.5",
-    "should": "^7.0.1",
+    "should": "^7.0.2",
     "underscore": "^1.8.3"
   }
 }

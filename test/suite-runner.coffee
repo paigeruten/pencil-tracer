@@ -8,8 +8,7 @@ Contextify = require "contextify"
 assert = require "assert"
 
 {instrumentCoffee} = require "../lib/index"
-coffeeScript = require "coffee-script"
-icedCoffeeScript = require "iced-coffee-script"
+coffeeScript = if process.argv[2] is "iced" then require("iced-coffee-script") else require("coffee-script")
 
 bold = red = green = reset = ''
 unless process.env.NODE_DISABLE_COLORS
@@ -128,9 +127,10 @@ runTests = (CoffeeScript, testsDir) ->
       failures.push {filename, error}
   return !failures.length
 
-console.log "\nRunning CoffeeScript test suite"
-runTests coffeeScript, path.join(path.dirname(__filename), "suite/coffee")
+if coffeeScript.iced?
+  console.log "\nRunning Iced CoffeeScript test suite"
+else
+  console.log "\nRunning CoffeeScript test suite"
 
-console.log "\nRunning Iced CoffeeScript test suite"
-runTests icedCoffeeScript, path.join(path.dirname(__filename), "suite/iced")
+runTests coffeeScript, path.join(path.dirname(__filename), "suite/coffee")
 

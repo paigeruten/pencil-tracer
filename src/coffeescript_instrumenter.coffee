@@ -103,6 +103,8 @@ class CoffeeScriptInstrumenter
     parensBlock
 
   findVariables: (node, parent=null, vars=[]) ->
+    return [] unless node
+
     if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
       # Skip properties in object literals, like the 'a' in {a: b}. That's not
       # a variable (but 'b' is).
