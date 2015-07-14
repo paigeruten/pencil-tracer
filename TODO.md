@@ -5,6 +5,9 @@
         * `'after'` events
         * Consistent tracing (i.e. pass the trace tests)
     * Variable Tracking
+        * Track properties (e.g. `window.location`)
+            * Special case: `@` variables
+                * Special case: `@` variables as arguments
         * Function calls
         * Return values
         * Thrown errors
@@ -13,9 +16,8 @@
         * `'after'` events
         * Consistent tracing (i.e. pass the trace tests)
     * Variable Tracking
-        * Variables
+        * Track properties (e.g. `window.location`)
         * Function calls
-        * Arguments
         * Return values
         * Thrown errors
     * Testing

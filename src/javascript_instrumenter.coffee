@@ -13,15 +13,31 @@ STATEMENTS_WITH_BODIES = [
   "DoWhileStatement", "ForStatement", "ForInStatement"
 ]
 
+isArray = Array.isArray || (value) -> {}.toString.call(value) is '[object Array]'
+
 class JavaScriptInstrumenter
   constructor: (@options) ->
     @options.traceFunc ?= "pencilTrace"
 
-  findVariables: (node) ->
-    []
+  findVariables: (node, vars=[]) ->
+    if node.type is "Identifier"
+      if vars.indexOf(node.name) is -1
+        vars.push node.name
 
-  findArguments: (node) ->
-    []
+    for key of node
+      continue if key is "parent"
+      continue if node.type is "Property" and key is "key"
+      continue if node.type in ["FunctionExpression", "FunctionDeclaration"] and key is "params"
+      if isArray(node[key])
+        for child in node[key]
+          @findVariables(child, vars)
+      else if node[key] and typeof node[key].type is "string" and node[key].type not in STATEMENTS
+        @findVariables(node[key], vars)
+
+    vars
+
+  findArguments: (funcNode, vars=[]) ->
+    (param.name for param in funcNode.params)
 
   # Returns javascript code that calls the trace function, passing in the event
   # object.
@@ -84,8 +100,8 @@ class JavaScriptInstrumenter
 
         when "BlockStatement"
           if node.parent.type in ["FunctionDeclaration", "FunctionExpression"]
-            enter = @traceCall(node, "enter")
-            leave = @traceCall(node, "leave")
+            enter = @traceCall(node.parent, "enter")
+            leave = @traceCall(node.parent, "leave")
             node.update "{ #{enter}; try #{node.source()} finally { #{leave}; } }"
 
           if node.parent.type is "TryStatement"
