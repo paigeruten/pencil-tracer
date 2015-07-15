@@ -7,7 +7,6 @@ Contextify = require "contextify"
 
 option "-f", "--file [FILENAME]", "input program for 'instrument', 'ast', and 'trace' tasks"
 option "-i", "--iced", "use Iced CoffeeScript for 'instrument', 'ast', and 'trace' tasks"
-option "-v", "--vars", "track variables for 'instrument', 'ast', and 'trace' tasks"
 
 build = (callback) ->
   # Compile CoffeeScript to JavaScript
@@ -47,7 +46,7 @@ task "instrument", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    console.log instrumentCoffee(options.file, code, coffee, bare: true, trackVariables: options.vars)
+    console.log instrumentCoffee(options.file, code, coffee, bare: true)
   else if /\.js$/.test options.file
     console.log instrumentJs(options.file, code)
   else
@@ -58,7 +57,7 @@ task "ast", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    console.log instrumentCoffee(options.file, code, coffee, ast: true, bare: true, trackVariables: options.vars).toString()
+    console.log instrumentCoffee(options.file, code, coffee, ast: true, bare: true).toString()
   else
     console.log "Error: file must end in .coffee."
     process.exit 1
@@ -67,7 +66,7 @@ task "trace", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    code = instrumentCoffee(options.file, code, coffee, bare: true, trackVariables: options.vars)
+    code = instrumentCoffee(options.file, code, coffee, bare: true)
   else if /\.js$/.test options.file
     code = instrumentCoffee(options.file, code)
   else
@@ -78,6 +77,7 @@ task "trace", (options) ->
     pencilTrace: (event) -> sandbox.pencilTraceEvents.push(event)
     pencilTraceEvents: []
     console: console
+    setTimeout: setTimeout
   Contextify sandbox
   sandbox.run code
 

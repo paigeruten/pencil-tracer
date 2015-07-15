@@ -1,5 +1,5 @@
-f = (cb) ->
-  cb 3
+f = (autocb) ->
+  3
 
 x = 0
 if true
@@ -17,9 +17,9 @@ if true
 #   6: before
 #   6: after
 #   7: before  f=<function> x=/
-#     1: enter   cb=<function>
-#     2: before  cb=<function>
-#     2: after   cb=<function>
+#     1: enter   autocb=<function>
+#     2: before  autocb=<function>
+#     2: after   autocb=<function>
 #     1: leave   return=/
 #   7: after   f=<function> x=3
 #   8: before

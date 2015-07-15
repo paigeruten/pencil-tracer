@@ -253,12 +253,13 @@ class CoffeeScriptInstrumenter
 
           # Assign the original last expression of the block to a temporary
           # variable, and return that value at the end of the block.
-          if expression is lastChild and not expression.jumps() and not (inClass and @nodeIsClassProperty(expression, inClass.determineName()))
+          if expression is lastChild and not expression.jumps() and expression not instanceof @nodeTypes.Await and not (inClass and @nodeIsClassProperty(expression, inClass.determineName()))
             tempVar = @temporaryVariable("temp")
             assignNode = @coffee.nodes("#{tempVar} = 0").expressions[0]
             assignNode.value = expression
             children[childIndex - 1] = assignNode
             children.splice(childIndex + 1, 0, @coffee.nodes(tempVar).expressions[0])
+            children[childIndex + 1].icedHasAutocbFlag = expression.icedHasAutocbFlag
             childIndex++
 
         # Recursively instrument the children of this node.
