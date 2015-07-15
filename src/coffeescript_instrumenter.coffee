@@ -162,6 +162,11 @@ class CoffeeScriptInstrumenter
   nodeIsObj: (node) ->
     node instanceof @nodeTypes.Value and node.isObject(true)
 
+  nodeIsClassProperty: (node, className) ->
+    @nodeIsObj(node) or
+    (node instanceof @nodeTypes.Assign and node.variable.looksStatic className) or
+    (node instanceof @nodeTypes.Assign and node.variable.this)
+
   shouldSkipNode: (node) ->
     node.pencilTracerInstrumented or
     node instanceof @nodeTypes.IcedRuntime
@@ -221,12 +226,12 @@ class CoffeeScriptInstrumenter
   # Instruments the AST recursively. Arguments:
   #   node: the current node of the AST
   #   parent: the parent node, or null if we're on the root node
-  #   inClass: whether we're traversing the body of a class (
+  #   inClass: whether we're traversing the body of a class
   #
   instrumentTree: (node, parent=null, inClass=false) ->
     return if @shouldSkipNode(node)
 
-    inClass = true if node instanceof @nodeTypes.Class
+    inClass = node if node instanceof @nodeTypes.Class
     inClass = false if @nodeIsObj(node)
 
     if node instanceof @nodeTypes.Block and parent not instanceof @nodeTypes.Parens
@@ -248,7 +253,7 @@ class CoffeeScriptInstrumenter
 
           # Assign the original last expression of the block to a temporary
           # variable, and return that value at the end of the block.
-          if expression is lastChild and not expression.jumps() and not (inClass and @nodeIsObj(expression))
+          if expression is lastChild and not expression.jumps() and not (inClass and @nodeIsClassProperty(expression, inClass.determineName()))
             tempVar = @temporaryVariable("temp")
             assignNode = @coffee.nodes("#{tempVar} = 0").expressions[0]
             assignNode.value = expression
