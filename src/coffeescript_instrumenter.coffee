@@ -63,6 +63,18 @@ class CoffeeScriptInstrumenter
       # instanceof operator on them.
       @nodeTypes.IcedRuntime = @nodeTypes.Await = @nodeTypes.Defer = @nodeTypes.Slot = @nodeTypes.IcedTailCall = ->
 
+  # Returns a unique name to use as a temporary variable, by appending a number
+  # to the given base name until it gets an identifier that hasn't been used.
+  temporaryVariable: (base) ->
+    name = "_penciltracer_#{base}"
+    index = 0
+    loop
+      curName = name + index
+      unless curName in @referencedVars
+        @referencedVars.push curName
+        return curName
+      index++
+
   # Creates an instrumented node that calls the trace function, passing in the
   # event object.
   createInstrumentedNode: (targetNode, eventType) ->
@@ -95,11 +107,18 @@ class CoffeeScriptInstrumenter
     instrumentedNode.pencilTracerInstrumented = true
     instrumentedNode
 
-  createInstrumentedExpr: (targetNode, eventType, originalExpr) ->
+  createInstrumentedExpr: (targetNode, originalExpr) ->
+    tempVar = @temporaryVariable "temp"
+
+    assignNode = @coffee.nodes("#{tempVar} = 0").expressions[0]
+    assignNode.value = originalExpr
+
     parensBlock = @coffee.nodes("(0)").expressions[0]
     parensBlock.base.body.expressions = []
-    parensBlock.base.body.expressions[0] = @createInstrumentedNode(targetNode, eventType)
-    parensBlock.base.body.expressions[1] = originalExpr
+    parensBlock.base.body.expressions[0] = @createInstrumentedNode(targetNode, "before")
+    parensBlock.base.body.expressions[1] = assignNode
+    parensBlock.base.body.expressions[2] = @createInstrumentedNode(targetNode, "after")
+    parensBlock.base.body.expressions[3] = @coffee.nodes(tempVar).expressions[0]
     parensBlock
 
   findVariables: (node, parent=null, vars=[]) ->
@@ -225,24 +244,24 @@ class CoffeeScriptInstrumenter
         children.unshift(instrumentedNode)
 
     else if node instanceof @nodeTypes.While
-      node.condition = @createInstrumentedExpr(node, "before", node.condition)
+      node.condition = @createInstrumentedExpr(node, node.condition)
 
       node.eachChild (child) =>
         @instrumentTree(child, node)
     else if node instanceof @nodeTypes.Switch
       if node.subject
-        node.subject = @createInstrumentedExpr(node, "before", node.subject)
+        node.subject = @createInstrumentedExpr(node, node.subject)
 
       for caseClause in node.cases
         if caseClause[0] instanceof Array
-          caseClause[0][0] = @createInstrumentedExpr(caseClause[0][0], "before", caseClause[0][0])
+          caseClause[0][0] = @createInstrumentedExpr(caseClause[0][0], caseClause[0][0])
         else
-          caseClause[0] = @createInstrumentedExpr(caseClause[0], "before", caseClause[0])
+          caseClause[0] = @createInstrumentedExpr(caseClause[0], caseClause[0])
 
       node.eachChild (child) =>
         @instrumentTree(child, node)
     else if node instanceof @nodeTypes.If
-      node.condition = @createInstrumentedExpr(node.condition, "before", node.condition)
+      node.condition = @createInstrumentedExpr(node.condition, node.condition)
 
       node.eachChild (child) =>
         @instrumentTree(child, node)
@@ -281,7 +300,8 @@ class CoffeeScriptInstrumenter
 
     # Get a list of referenced variables so that generated variables won't get
     # the same name.
-    csOptions.referencedVars = (token[1] for token in @coffee.tokens(code, csOptions) when token.variable)
+    @referencedVars = csOptions.referencedVars =
+      (token[1] for token in @coffee.tokens(code, csOptions) when token.variable)
 
     # Parse the code to get an AST.
     ast = @coffee.nodes code, csOptions
