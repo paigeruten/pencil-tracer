@@ -64,10 +64,8 @@ parseTraceLine = (line) ->
   event.type = matches[3]
   event.location = { first_line: parseInt(matches[2], 10) }
   switch event.type
-    when "before", "after"
+    when "before", "after", "enter"
       event.vars = vars
-    when "enter"
-      event.args = vars
     when "leave"
       if "return" of vars
         event.returnVal = vars.return
@@ -96,8 +94,7 @@ traceToString = (trace) ->
     type += " " unless type is "before"
     vars =
       switch event.type
-        when "before", "after" then event.vars
-        when "enter" then event.args
+        when "before", "after", "enter" then event.vars
         when "leave"
           if "returnVal" of event
             { "return": event.returnVal }
@@ -130,10 +127,8 @@ eventEq = (expected, actual) ->
   return false unless expected.location.first_line is actual.location.first_line
 
   switch expected.type
-    when "before", "after"
+    when "before", "after", "enter"
       varsEq(expected.vars, actual.vars)
-    when "enter"
-      varsEq(expected.args, actual.args)
     when "leave"
       varsEq({returnVal: expected.returnVal, thrownErr: expected.thrownErr},
              {returnVal: actual.returnVal, thrownErr: actual.thrownErr})
