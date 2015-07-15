@@ -4,6 +4,7 @@
     * Tracing
         * `'after'` events
         * Consistent tracing (i.e. pass the trace tests)
+        * Trace each method/property definition in a class body separately
     * Variable Tracking
         * Track properties (e.g. `window.location`)
             * Special case: `@` variables

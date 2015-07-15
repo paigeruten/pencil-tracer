@@ -154,6 +154,9 @@ class CoffeeScriptInstrumenter
         # recursively find all identifiers in the structure.
         args.push.apply(args, @findVariables(name))
 
+  nodeIsObj: (node) ->
+    node instanceof @nodeTypes.Value and node.isObject(true)
+
   shouldSkipNode: (node) ->
     node.pencilTracerInstrumented or
     node instanceof @nodeTypes.IcedRuntime
@@ -213,27 +216,43 @@ class CoffeeScriptInstrumenter
   # Instruments the AST recursively. Arguments:
   #   node: the current node of the AST
   #   parent: the parent node, or null if we're on the root node
+  #   inClass: whether we're traversing the body of a class (
   #
-  instrumentTree: (node, parent=null) ->
+  instrumentTree: (node, parent=null, inClass=false) ->
     return if @shouldSkipNode(node)
 
-    if node instanceof @nodeTypes.Block and parent not instanceof @nodeTypes.Parens and parent not instanceof @nodeTypes.Class
+    inClass = true if node instanceof @nodeTypes.Class
+    inClass = false if @nodeIsObj(node)
+
+    if node instanceof @nodeTypes.Block and parent not instanceof @nodeTypes.Parens
       # Instrument children of Blocks with before events.
       children = node.expressions
       childIndex = 0
       while childIndex < children.length
         expression = children[childIndex]
+        isLast = childIndex is children.length - 1
 
         if @shouldInstrumentNode(expression)
-          # Instrument this line with a before event.
-          instrumentedNode = @createInstrumentedNode(expression, "before")
+          beforeNode = @createInstrumentedNode(expression, "before")
+          afterNode = @createInstrumentedNode(expression, "after")
 
-          # Insert it before the node it corresponds to, and correct the childIndex.
-          children.splice(childIndex, 0, instrumentedNode)
+          children.splice(childIndex, 0, beforeNode)
+          childIndex++
+          children.splice(childIndex + 1, 0, afterNode)
           childIndex++
 
+          # Assign the original last expression of the block to a temporary
+          # variable, and return that value at the end of the block.
+          if isLast and not expression.jumps() and not (inClass and @nodeIsObj(expression))
+            tempVar = @temporaryVariable("temp")
+            assignNode = @coffee.nodes("#{tempVar} = 0").expressions[0]
+            assignNode.value = expression
+            children[childIndex - 1] = assignNode
+            children.splice(childIndex + 1, 0, @coffee.nodes(tempVar).expressions[0])
+            childIndex++
+
         # Recursively instrument the children of this node.
-        @instrumentTree(expression, node)
+        @instrumentTree(expression, node, inClass)
 
         childIndex++
 
@@ -247,7 +266,7 @@ class CoffeeScriptInstrumenter
       node.condition = @createInstrumentedExpr(node, node.condition)
 
       node.eachChild (child) =>
-        @instrumentTree(child, node)
+        @instrumentTree(child, node, inClass)
     else if node instanceof @nodeTypes.Switch
       if node.subject
         node.subject = @createInstrumentedExpr(node, node.subject)
@@ -259,12 +278,12 @@ class CoffeeScriptInstrumenter
           caseClause[0] = @createInstrumentedExpr(caseClause[0], caseClause[0])
 
       node.eachChild (child) =>
-        @instrumentTree(child, node)
+        @instrumentTree(child, node, inClass)
     else if node instanceof @nodeTypes.If
       node.condition = @createInstrumentedExpr(node.condition, node.condition)
 
       node.eachChild (child) =>
-        @instrumentTree(child, node)
+        @instrumentTree(child, node, inClass)
     else if node instanceof @nodeTypes.Code
       # Wrap function bodies with a try..finally block that makes sure "enter"
       # and "leave" events occur for the function, even if an exception is
@@ -279,14 +298,14 @@ class CoffeeScriptInstrumenter
       node.body = tryBlock
 
       # Proceed to instrument the original function body.
-      @instrumentTree(tryNode.attempt, tryNode)
+      @instrumentTree(tryNode.attempt, tryNode, inClass)
     else
       # Recursively instrument each child of this node.
       node.eachChild (child) =>
-        @instrumentTree(child, node)
+        @instrumentTree(child, node, inClass)
 
       if node.icedContinuationBlock?
-        @instrumentTree(node.icedContinuationBlock, node)
+        @instrumentTree(node.icedContinuationBlock, node, inClass)
 
   # Instruments some CoffeeScript code, compiles to JavaScript, and returns the
   # JavaScript code.
