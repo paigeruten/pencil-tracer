@@ -82,7 +82,7 @@ class CoffeeScriptInstrumenter
 
   # Creates an instrumented node that calls the trace function, passing in the
   # event object.
-  createInstrumentedNode: (targetNode, eventType) ->
+  createInstrumentedNode: (targetNode, eventType, returnOrThrowVar) ->
     if targetNode instanceof @nodeTypes.IcedTailCall
       targetNode = targetNode.value
 
@@ -101,7 +101,7 @@ class CoffeeScriptInstrumenter
         when "enter"
           "vars: {" + ("#{name}: #{name}" for name in @findArguments(targetNode)) + "}"
         when "leave"
-          "returnOrThrow: #{@returnOrThrowVar}"
+          "returnOrThrow: #{returnOrThrowVar}"
 
     eventObj = "{ location: #{locationObj}, type: '#{eventType}', #{extra} }"
 
@@ -228,7 +228,7 @@ class CoffeeScriptInstrumenter
   #   parent: the parent node, or null if we're on the root node
   #   inClass: whether we're traversing the body of a class
   #
-  instrumentTree: (node, parent=null, inClass=false) ->
+  instrumentTree: (node, parent=null, inClass=false, returnOrThrowVar) ->
     return if @shouldSkipNode(node)
 
     inClass = node if node instanceof @nodeTypes.Class
@@ -239,6 +239,13 @@ class CoffeeScriptInstrumenter
       children = node.expressions
       lastChild = @lastNonComment(children)
       childIndex = 0
+
+      # Set up a top level object used for storing results of expressions.
+      if not returnOrThrowVar
+        returnOrThrowVar = @temporaryVariable "returnOrThrow"
+        children.unshift @coffee.nodes("#{returnOrThrowVar} = {}").expressions[0]
+        childIndex = 1
+
       while childIndex < children.length
         expression = children[childIndex]
 
@@ -254,16 +261,21 @@ class CoffeeScriptInstrumenter
           # Assign the original last expression of the block to a temporary
           # variable, and return that value at the end of the block.
           if expression is lastChild and not expression.jumps() and expression not instanceof @nodeTypes.Await and not (inClass and @nodeIsClassProperty(expression, inClass.determineName()))
-            tempVar = @temporaryVariable("temp")
-            assignNode = @coffee.nodes("#{tempVar} = 0").expressions[0]
+            assignNode = @coffee.nodes("#{returnOrThrowVar}.value = 0").expressions[0]
             assignNode.value = expression
             children[childIndex - 1] = assignNode
-            children.splice(childIndex + 1, 0, @coffee.nodes(tempVar).expressions[0])
+            children.splice(childIndex + 1, 0, @coffee.nodes("#{returnOrThrowVar}.value").expressions[0])
             children[childIndex + 1].icedHasAutocbFlag = expression.icedHasAutocbFlag
+            childIndex++
+          else if expression instanceof @nodeTypes.Return
+            assignNode = @coffee.nodes("#{returnOrThrowVar}.value = 0").expressions[0]
+            assignNode.value = expression.expression || @coffee.nodes("undefined").expressions[0]
+            children[childIndex - 1] = assignNode
+            children.splice(childIndex + 1, 0, @coffee.nodes("return #{returnOrThrowVar}.value").expressions[0])
             childIndex++
 
         # Recursively instrument the children of this node.
-        @instrumentTree(expression, node, inClass)
+        @instrumentTree(expression, node, inClass, returnOrThrowVar)
 
         childIndex++
 
@@ -277,7 +289,7 @@ class CoffeeScriptInstrumenter
       node.condition = @createInstrumentedExpr(node, node.condition)
 
       node.eachChild (child) =>
-        @instrumentTree(child, node, inClass)
+        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.Switch
       if node.subject
         node.subject = @createInstrumentedExpr(node, node.subject)
@@ -289,22 +301,24 @@ class CoffeeScriptInstrumenter
           caseClause[0] = @createInstrumentedExpr(caseClause[0], caseClause[0])
 
       node.eachChild (child) =>
-        @instrumentTree(child, node, inClass)
+        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.If
       node.condition = @createInstrumentedExpr(node.condition, node.condition)
 
       node.eachChild (child) =>
-        @instrumentTree(child, node, inClass)
+        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.Code
+      returnOrThrowVar = @temporaryVariable "returnOrThrow"
+
       # Wrap function bodies with a try..finally block that makes sure "enter"
       # and "leave" events occur for the function, even if an exception is
       # thrown.
       block = @coffee.nodes """
-        #{@returnOrThrowVar} = { type: 'return', value: undefined }
+        #{returnOrThrowVar} = { type: 'return', value: undefined }
         try
         catch #{@caughtErrorVar}
-          #{@returnOrThrowVar}.type = 'throw'
-          #{@returnOrThrowVar}.value = #{@caughtErrorVar}
+          #{returnOrThrowVar}.type = 'throw'
+          #{returnOrThrowVar}.value = #{@caughtErrorVar}
           throw #{@caughtErrorVar}
         finally
       """
@@ -312,19 +326,19 @@ class CoffeeScriptInstrumenter
 
       tryNode.attempt = node.body
       block.expressions.unshift(@createInstrumentedNode(node, "enter"))
-      tryNode.ensure.expressions.unshift(@createInstrumentedNode(node, "leave"))
+      tryNode.ensure.expressions.unshift(@createInstrumentedNode(node, "leave", returnOrThrowVar))
 
       node.body = block
 
       # Proceed to instrument the original function body.
-      @instrumentTree(tryNode.attempt, tryNode, inClass)
+      @instrumentTree(tryNode.attempt, tryNode, inClass, returnOrThrowVar)
     else
       # Recursively instrument each child of this node.
       node.eachChild (child) =>
-        @instrumentTree(child, node, inClass)
+        @instrumentTree(child, node, inClass, returnOrThrowVar)
 
       if node.icedContinuationBlock?
-        @instrumentTree(node.icedContinuationBlock, node, inClass)
+        @instrumentTree(node.icedContinuationBlock, node, inClass, returnOrThrowVar)
 
   # Instruments some CoffeeScript code, compiles to JavaScript, and returns the
   # JavaScript code.
@@ -341,7 +355,6 @@ class CoffeeScriptInstrumenter
     @referencedVars = csOptions.referencedVars =
       (token[1] for token in @coffee.tokens(code, csOptions) when token.variable)
 
-    @returnOrThrowVar = @temporaryVariable("returnOrThrow")
     @caughtErrorVar = @temporaryVariable("err")
 
     # Parse the code to get an AST.

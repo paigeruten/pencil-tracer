@@ -92,7 +92,7 @@
       return null;
     };
 
-    CoffeeScriptInstrumenter.prototype.createInstrumentedNode = function(targetNode, eventType) {
+    CoffeeScriptInstrumenter.prototype.createInstrumentedNode = function(targetNode, eventType, returnOrThrowVar) {
       var eventObj, extra, instrumentedNode, locationData, locationObj, name;
       if (targetNode instanceof this.nodeTypes.IcedTailCall) {
         targetNode = targetNode.value;
@@ -128,7 +128,7 @@
               return results;
             }).call(this)) + "}";
           case "leave":
-            return "returnOrThrow: " + this.returnOrThrowVar;
+            return "returnOrThrow: " + returnOrThrowVar;
         }
       }).call(this);
       eventObj = "{ location: " + locationObj + ", type: '" + eventType + "', " + extra + " }";
@@ -271,8 +271,8 @@
       }
     };
 
-    CoffeeScriptInstrumenter.prototype.instrumentTree = function(node, parent, inClass) {
-      var afterNode, assignNode, beforeNode, block, caseClause, childIndex, children, expression, instrumentedNode, j, lastChild, len, ref, tempVar, tryNode;
+    CoffeeScriptInstrumenter.prototype.instrumentTree = function(node, parent, inClass, returnOrThrowVar) {
+      var afterNode, assignNode, beforeNode, block, caseClause, childIndex, children, expression, instrumentedNode, j, lastChild, len, ref, tryNode;
       if (parent == null) {
         parent = null;
       }
@@ -292,6 +292,11 @@
         children = node.expressions;
         lastChild = this.lastNonComment(children);
         childIndex = 0;
+        if (!returnOrThrowVar) {
+          returnOrThrowVar = this.temporaryVariable("returnOrThrow");
+          children.unshift(this.coffee.nodes(returnOrThrowVar + " = {}").expressions[0]);
+          childIndex = 1;
+        }
         while (childIndex < children.length) {
           expression = children[childIndex];
           if (this.shouldInstrumentNode(expression)) {
@@ -302,16 +307,21 @@
             children.splice(childIndex + 1, 0, afterNode);
             childIndex++;
             if (expression === lastChild && !expression.jumps() && !(expression instanceof this.nodeTypes.Await) && !(inClass && this.nodeIsClassProperty(expression, inClass.determineName()))) {
-              tempVar = this.temporaryVariable("temp");
-              assignNode = this.coffee.nodes(tempVar + " = 0").expressions[0];
+              assignNode = this.coffee.nodes(returnOrThrowVar + ".value = 0").expressions[0];
               assignNode.value = expression;
               children[childIndex - 1] = assignNode;
-              children.splice(childIndex + 1, 0, this.coffee.nodes(tempVar).expressions[0]);
+              children.splice(childIndex + 1, 0, this.coffee.nodes(returnOrThrowVar + ".value").expressions[0]);
               children[childIndex + 1].icedHasAutocbFlag = expression.icedHasAutocbFlag;
+              childIndex++;
+            } else if (expression instanceof this.nodeTypes.Return) {
+              assignNode = this.coffee.nodes(returnOrThrowVar + ".value = 0").expressions[0];
+              assignNode.value = expression.expression || this.coffee.nodes("undefined").expressions[0];
+              children[childIndex - 1] = assignNode;
+              children.splice(childIndex + 1, 0, this.coffee.nodes("return " + returnOrThrowVar + ".value").expressions[0]);
               childIndex++;
             }
           }
-          this.instrumentTree(expression, node, inClass);
+          this.instrumentTree(expression, node, inClass, returnOrThrowVar);
           childIndex++;
         }
         if (parent instanceof this.nodeTypes.For) {
@@ -322,7 +332,7 @@
         node.condition = this.createInstrumentedExpr(node, node.condition);
         return node.eachChild((function(_this) {
           return function(child) {
-            return _this.instrumentTree(child, node, inClass);
+            return _this.instrumentTree(child, node, inClass, returnOrThrowVar);
           };
         })(this));
       } else if (node instanceof this.nodeTypes.Switch) {
@@ -340,32 +350,33 @@
         }
         return node.eachChild((function(_this) {
           return function(child) {
-            return _this.instrumentTree(child, node, inClass);
+            return _this.instrumentTree(child, node, inClass, returnOrThrowVar);
           };
         })(this));
       } else if (node instanceof this.nodeTypes.If) {
         node.condition = this.createInstrumentedExpr(node.condition, node.condition);
         return node.eachChild((function(_this) {
           return function(child) {
-            return _this.instrumentTree(child, node, inClass);
+            return _this.instrumentTree(child, node, inClass, returnOrThrowVar);
           };
         })(this));
       } else if (node instanceof this.nodeTypes.Code) {
-        block = this.coffee.nodes(this.returnOrThrowVar + " = { type: 'return', value: undefined }\ntry\ncatch " + this.caughtErrorVar + "\n  " + this.returnOrThrowVar + ".type = 'throw'\n  " + this.returnOrThrowVar + ".value = " + this.caughtErrorVar + "\n  throw " + this.caughtErrorVar + "\nfinally");
+        returnOrThrowVar = this.temporaryVariable("returnOrThrow");
+        block = this.coffee.nodes(returnOrThrowVar + " = { type: 'return', value: undefined }\ntry\ncatch " + this.caughtErrorVar + "\n  " + returnOrThrowVar + ".type = 'throw'\n  " + returnOrThrowVar + ".value = " + this.caughtErrorVar + "\n  throw " + this.caughtErrorVar + "\nfinally");
         tryNode = block.expressions[1];
         tryNode.attempt = node.body;
         block.expressions.unshift(this.createInstrumentedNode(node, "enter"));
-        tryNode.ensure.expressions.unshift(this.createInstrumentedNode(node, "leave"));
+        tryNode.ensure.expressions.unshift(this.createInstrumentedNode(node, "leave", returnOrThrowVar));
         node.body = block;
-        return this.instrumentTree(tryNode.attempt, tryNode, inClass);
+        return this.instrumentTree(tryNode.attempt, tryNode, inClass, returnOrThrowVar);
       } else {
         node.eachChild((function(_this) {
           return function(child) {
-            return _this.instrumentTree(child, node, inClass);
+            return _this.instrumentTree(child, node, inClass, returnOrThrowVar);
           };
         })(this));
         if (node.icedContinuationBlock != null) {
-          return this.instrumentTree(node.icedContinuationBlock, node, inClass);
+          return this.instrumentTree(node.icedContinuationBlock, node, inClass, returnOrThrowVar);
         }
       }
     };
@@ -391,7 +402,6 @@
         }
         return results;
       }).call(this);
-      this.returnOrThrowVar = this.temporaryVariable("returnOrThrow");
       this.caughtErrorVar = this.temporaryVariable("err");
       ast = this.coffee.nodes(code, csOptions);
       this.instrumentTree(ast);
