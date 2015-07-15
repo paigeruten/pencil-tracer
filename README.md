@@ -69,22 +69,19 @@ Here is what the program looks like after being instrumented:
 ```javascript
 pencilTrace({type: 'before', location: {first_line: 1, ...}, vars: {square: square}});
 var square = function (x) {
-  var _returnVal, _thrownErr;
+  var _returnOrThrow = { type: 'return', value: undefined };
   pencilTrace({type: 'enter', location: {first_line: 1, ...}, vars: {x: x}});
   try {
     pencilTrace({type: 'before', location: {first_line: 2, ...}, vars: {x: x}});
-    _returnVal = x * x;
+    _returnOrThrow.value = x * x;
     pencilTrace({type: 'after', location: {first_line: 2, ...}, vars: {x: x}});
-    return _returnVal;
+    return _returnOrThrow.value;
   } catch (err) {
-    _thrownErr = err;
+    _returnOrThrow.type = 'throw';
+    _returnOrThrow.value = err;
     throw err;
   } finally {
-    if (_thrownErr) {
-      pencilTrace({type: 'leave', location: {first_line: 1, ...}, thrownErr: _thrownErr});
-    } else {
-      pencilTrace({type: 'leave', location: {first_line: 1, ...}, returnVal: _returnVal});
-    }
+    pencilTrace({type: 'leave', location: {first_line: 1, ...}, returnOrThrow: _returnOrThrow});
   }
 };
 pencilTrace({type: 'after', location: {first_line: 1, ...}, vars: {square: square}});
@@ -117,7 +114,7 @@ This would produce the following trace of the program above:
  {type: 'enter',  location: {first_line: 1, ...}, vars: {x: 3}},
  {type: 'before', location: {first_line: 2, ...}, vars: {x: 3}},
  {type: 'after',  location: {first_line: 2, ...}, vars: {x: 3}},
- {type: 'leave',  location: {first_line: 1, ...}, returnVal: 9},
+ {type: 'leave',  location: {first_line: 1, ...}, returnOrThrow: {type: 'return', value: 9},
  {type: 'after',  location: {first_line: 5, ...}, vars: {y: 9, square: <function>}}]
 ```
 
@@ -191,22 +188,20 @@ entire function body.
 
 #### `'leave'` Event
 
-Triggered after a function returns or throws an error. If the function returned
-normally, a `returnVal` property will contain the return value. Otherwise a
-`thrownErr` property will contain the error object that was thrown. The
-`location` will be the same as the `'enter'` event's `location`.
+Triggered after a function returns or throws an error. The `returnOrThrow`
+property contains an object with two properties: `type` tells you whether the
+function returned normally or threw an error, and `value` tells you the return
+value or the error object that was thrown. The `location` will be the same as
+the `'enter'` event's `location`.
 
 ```javascript
 {
   type: 'leave',
   location: { ... },
-  returnVal: ...
-}
-
-{
-  type: 'leave',
-  location: { ... },
-  thrownErr: ...
+  returnOrThrow: {
+    type: 'return' or 'throw',
+    value: ...
+  }
 }
 ```
 

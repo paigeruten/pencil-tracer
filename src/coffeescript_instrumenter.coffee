@@ -101,7 +101,7 @@ class CoffeeScriptInstrumenter
         when "enter"
           "vars: {" + ("#{name}: #{name}" for name in @findArguments(targetNode)) + "}"
         when "leave"
-          "returnVal: 'TEST'"
+          "returnOrThrow: #{@returnOrThrowVar}"
 
     eventObj = "{ location: #{locationObj}, type: '#{eventType}', #{extra} }"
 
@@ -299,14 +299,22 @@ class CoffeeScriptInstrumenter
       # Wrap function bodies with a try..finally block that makes sure "enter"
       # and "leave" events occur for the function, even if an exception is
       # thrown.
-      tryBlock = @coffee.nodes("try\nfinally")
-      tryNode = tryBlock.expressions[0]
+      block = @coffee.nodes """
+        #{@returnOrThrowVar} = { type: 'return', value: undefined }
+        try
+        catch #{@caughtErrorVar}
+          #{@returnOrThrowVar}.type = 'throw'
+          #{@returnOrThrowVar}.value = #{@caughtErrorVar}
+          throw #{@caughtErrorVar}
+        finally
+      """
+      tryNode = block.expressions[1]
 
       tryNode.attempt = node.body
-      tryBlock.expressions.unshift(@createInstrumentedNode(node, "enter"))
+      block.expressions.unshift(@createInstrumentedNode(node, "enter"))
       tryNode.ensure.expressions.unshift(@createInstrumentedNode(node, "leave"))
 
-      node.body = tryBlock
+      node.body = block
 
       # Proceed to instrument the original function body.
       @instrumentTree(tryNode.attempt, tryNode, inClass)
@@ -332,6 +340,9 @@ class CoffeeScriptInstrumenter
     # the same name.
     @referencedVars = csOptions.referencedVars =
       (token[1] for token in @coffee.tokens(code, csOptions) when token.variable)
+
+    @returnOrThrowVar = @temporaryVariable("returnOrThrow")
+    @caughtErrorVar = @temporaryVariable("err")
 
     # Parse the code to get an AST.
     ast = @coffee.nodes code, csOptions

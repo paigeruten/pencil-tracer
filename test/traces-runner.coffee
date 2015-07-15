@@ -10,6 +10,8 @@ Contextify = require "contextify"
 {instrumentJs, instrumentCoffee} = require "../lib/index"
 coffeeScript = require "coffee-script"
 icedCoffeeScript = require "iced-coffee-script"
+# XXX: requiring iced right after normal coffeescript caused problems in
+# suite-runner.coffee. So far, it hasn't caused problems with these tests...
 
 # Path to test/traces.
 tracesDir = path.join(path.dirname(__filename), "traces")
@@ -68,9 +70,9 @@ parseTraceLine = (line) ->
       event.vars = vars
     when "leave"
       if "return" of vars
-        event.returnVal = vars.return
+        event.returnOrThrow = { type: "return", value: vars.return }
       else
-        event.thrownErr = vars.throw
+        event.returnOrThrow = { type: "throw", value: vars.throw }
   event
 
 abbrevValue = (val, isActual) ->
@@ -96,10 +98,10 @@ traceToString = (trace) ->
       switch event.type
         when "before", "after", "enter" then event.vars
         when "leave"
-          if "returnVal" of event
-            { "return": event.returnVal }
+          if event.returnOrThrow.type is "return"
+            { "return": event.returnOrThrow.value }
           else
-            { "throw": event.thrownErr }
+            { "throw": event.returnOrThrow.value }
     varsStr = ("#{name}=#{abbrevValue(vars[name], isActual)}" for name of vars).join(" ")
     str += "\n    #{line}#{type}  #{varsStr}"
   str
@@ -130,8 +132,8 @@ eventEq = (expected, actual) ->
     when "before", "after", "enter"
       varsEq(expected.vars, actual.vars)
     when "leave"
-      varsEq({returnVal: expected.returnVal, thrownErr: expected.thrownErr},
-             {returnVal: actual.returnVal, thrownErr: actual.thrownErr})
+      expected.returnOrThrow.type is actual.returnOrThrow.type and
+      varsEq({value: expected.returnOrThrow.value}, {value: actual.returnOrThrow.value})
 
 # Compare an expected trace with the actual trace of a file.
 traceEq = (expected, actual) ->
@@ -197,6 +199,7 @@ testFile = (traceFile, language) ->
 anyFailures = false
 
 # Loop through files in test/traces/js directory.
+###
 console.log "\nRunning trace tests for JavaScript"
 traceFiles = fs.readdirSync path.join(tracesDir, "js")
 for traceFile in traceFiles
@@ -206,6 +209,7 @@ for traceFile in traceFiles
   # Perform all tests in the file.
   result = testFile traceFile, "js"
   anyFailures = true if not result
+###
 
 # Run all coffeescript tests with both CoffeeScript and Iced CoffeeScript.
 for coffee in [coffeeScript, icedCoffeeScript]
