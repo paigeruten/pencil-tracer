@@ -9,6 +9,7 @@
         * Track properties (e.g. `window.location`)
             * Special case: `@` variables
                 * Special case: `@` variables as arguments
+        * Track variables in loop guards (`when` clauses)
         * Function calls
         * Return values
         * Thrown errors

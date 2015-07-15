@@ -75,6 +75,11 @@ class CoffeeScriptInstrumenter
         return curName
       index++
 
+  lastNonComment: (list) ->
+    i = list.length
+    return list[i] while i-- when list[i] not instanceof @nodeTypes.Comment
+    null
+
   # Creates an instrumented node that calls the trace function, passing in the
   # event object.
   createInstrumentedNode: (targetNode, eventType) ->
@@ -227,10 +232,10 @@ class CoffeeScriptInstrumenter
     if node instanceof @nodeTypes.Block and parent not instanceof @nodeTypes.Parens
       # Instrument children of Blocks with before events.
       children = node.expressions
+      lastChild = @lastNonComment(children)
       childIndex = 0
       while childIndex < children.length
         expression = children[childIndex]
-        isLast = childIndex is children.length - 1
 
         if @shouldInstrumentNode(expression)
           beforeNode = @createInstrumentedNode(expression, "before")
@@ -243,7 +248,7 @@ class CoffeeScriptInstrumenter
 
           # Assign the original last expression of the block to a temporary
           # variable, and return that value at the end of the block.
-          if isLast and not expression.jumps() and not (inClass and @nodeIsObj(expression))
+          if expression is lastChild and not expression.jumps() and not (inClass and @nodeIsObj(expression))
             tempVar = @temporaryVariable("temp")
             assignNode = @coffee.nodes("#{tempVar} = 0").expressions[0]
             assignNode.value = expression
