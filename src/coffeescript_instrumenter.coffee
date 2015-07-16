@@ -158,6 +158,7 @@ class CoffeeScriptInstrumenter
         # assignment. Here we'll delegate to findVariables(), as it will
         # recursively find all identifiers in the structure.
         args.push.apply(args, @findVariables(name))
+    args
 
   nodeIsObj: (node) ->
     node instanceof @nodeTypes.Value and node.isObject(true)
@@ -273,6 +274,10 @@ class CoffeeScriptInstrumenter
             children[childIndex - 1] = assignNode
             children.splice(childIndex + 1, 0, @coffee.nodes("return #{returnOrThrowVar}.value").expressions[0])
             childIndex++
+          else if expression instanceof @nodeTypes.Literal and expression.value in ["break", "continue"]
+            temp = children[childIndex]
+            children[childIndex] = children[childIndex - 1]
+            children[childIndex - 1] = temp
 
         # Recursively instrument the children of this node.
         @instrumentTree(expression, node, inClass, returnOrThrowVar)

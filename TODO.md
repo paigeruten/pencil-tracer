@@ -2,7 +2,6 @@
 
 * CoffeeScript
     * Tracing
-        * `'after'` events
         * Consistent tracing (i.e. pass the trace tests)
         * Trace each method/property definition in a class body separately
     * Variable Tracking
@@ -11,8 +10,6 @@
                 * Special case: `@` variables as arguments
         * Track variables in loop guards (`when` clauses)
         * Function calls
-        * Return values
-        * Thrown errors
 * JavaScript
     * Tracing
         * `'after'` events

@@ -181,25 +181,24 @@
     };
 
     CoffeeScriptInstrumenter.prototype.findArguments = function(codeNode) {
-      var args, j, len, name, paramNode, ref, results;
+      var args, j, len, name, paramNode, ref;
       if (!(codeNode instanceof this.nodeTypes.Code)) {
         throw new Error("findArguments() expects a Code node");
       }
       args = [];
       ref = codeNode.params;
-      results = [];
       for (j = 0, len = ref.length; j < len; j++) {
         paramNode = ref[j];
         name = paramNode.name;
         if (name instanceof this.nodeTypes.Literal) {
-          results.push(args.push(name.value));
+          args.push(name.value);
         } else if (name instanceof this.nodeTypes.Value) {
 
         } else {
-          results.push(args.push.apply(args, this.findVariables(name)));
+          args.push.apply(args, this.findVariables(name));
         }
       }
-      return results;
+      return args;
     };
 
     CoffeeScriptInstrumenter.prototype.nodeIsObj = function(node) {
@@ -272,7 +271,7 @@
     };
 
     CoffeeScriptInstrumenter.prototype.instrumentTree = function(node, parent, inClass, returnOrThrowVar) {
-      var afterNode, assignNode, beforeNode, block, caseClause, childIndex, children, expression, instrumentedNode, j, lastChild, len, ref, tryNode;
+      var afterNode, assignNode, beforeNode, block, caseClause, childIndex, children, expression, instrumentedNode, j, lastChild, len, ref, ref1, temp, tryNode;
       if (parent == null) {
         parent = null;
       }
@@ -319,6 +318,10 @@
               children[childIndex - 1] = assignNode;
               children.splice(childIndex + 1, 0, this.coffee.nodes("return " + returnOrThrowVar + ".value").expressions[0]);
               childIndex++;
+            } else if (expression instanceof this.nodeTypes.Literal && ((ref = expression.value) === "break" || ref === "continue")) {
+              temp = children[childIndex];
+              children[childIndex] = children[childIndex - 1];
+              children[childIndex - 1] = temp;
             }
           }
           this.instrumentTree(expression, node, inClass, returnOrThrowVar);
@@ -339,9 +342,9 @@
         if (node.subject) {
           node.subject = this.createInstrumentedExpr(node, node.subject);
         }
-        ref = node.cases;
-        for (j = 0, len = ref.length; j < len; j++) {
-          caseClause = ref[j];
+        ref1 = node.cases;
+        for (j = 0, len = ref1.length; j < len; j++) {
+          caseClause = ref1[j];
           if (caseClause[0] instanceof Array) {
             caseClause[0][0] = this.createInstrumentedExpr(caseClause[0][0], caseClause[0][0]);
           } else {
