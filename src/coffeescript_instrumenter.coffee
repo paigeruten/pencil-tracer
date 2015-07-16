@@ -177,6 +177,7 @@ class CoffeeScriptInstrumenter
     node not instanceof @nodeTypes.IcedRuntime and
     (node not instanceof @nodeTypes.IcedTailCall or node.value) and
     node not instanceof @nodeTypes.Comment and
+    node not instanceof @nodeTypes.For and
     node not instanceof @nodeTypes.While and
     node not instanceof @nodeTypes.Switch and
     node not instanceof @nodeTypes.If
@@ -284,12 +285,14 @@ class CoffeeScriptInstrumenter
 
         childIndex++
 
-      # Instrument the first line of for loops, so that the for loop is
-      # traced for each iteration.
-      if parent instanceof @nodeTypes.For
-        instrumentedNode = @createInstrumentedNode(parent, "before")
-        children.unshift(instrumentedNode)
+    else if node instanceof @nodeTypes.For
+      node.source = @createInstrumentedExpr(node, node.source) unless node.range
 
+      node.guard ?= @coffee.nodes("true").expressions[0]
+      node.guard = @createInstrumentedExpr(node, node.guard)
+
+      node.eachChild (child) =>
+        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.While
       node.condition = @createInstrumentedExpr(node, node.condition)
 

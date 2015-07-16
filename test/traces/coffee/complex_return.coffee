@@ -15,5 +15,5 @@ f()
 #       2: leave   return=3
 #     2: after
 #     1: leave   return=3
-#   4: after
+#   4: after   f=<function>
 
