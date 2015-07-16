@@ -4,6 +4,7 @@
 
 fs = require "fs"
 path = require "path"
+util = require "util"
 Contextify = require "contextify"
 {isEqual} = require "underscore"
 
@@ -81,7 +82,7 @@ abbrevValue = (val, isActual) ->
   else if typeof val is "function"
     "<function>"
   else if isActual
-    JSON.stringify(val)
+    util.inspect val
   else
     val
 

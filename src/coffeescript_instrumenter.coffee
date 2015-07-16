@@ -128,6 +128,7 @@ class CoffeeScriptInstrumenter
 
   findVariables: (node, parent=null, vars=[]) ->
     return [] if not node
+    return [] if node.pencilTracerInstrumented
 
     if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
       # Skip properties in object literals, like the 'a' in {a: b}. That's not
@@ -138,7 +139,8 @@ class CoffeeScriptInstrumenter
           vars.push node.base.value
 
     node.eachChild (child) =>
-      @findVariables(child, node, vars) unless child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens
+      if not (child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens) and child not instanceof @nodeTypes.Code
+        @findVariables(child, node, vars)
 
     vars
 
@@ -289,7 +291,7 @@ class CoffeeScriptInstrumenter
       node.source = @createInstrumentedExpr(node, node.source) unless node.range
 
       node.guard ?= @coffee.nodes("true").expressions[0]
-      node.guard = @createInstrumentedExpr(node, node.guard)
+      node.guard = @createInstrumentedExpr(node.guard, node.guard)
 
       node.eachChild (child) =>
         @instrumentTree(child, node, inClass, returnOrThrowVar)

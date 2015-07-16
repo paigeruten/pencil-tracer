@@ -42,7 +42,6 @@ runTests = (CoffeeScript, testsDir) ->
 
   # Our test helper function for delimiting different test cases.
   global.test = (description, fn) ->
-    console.log description
     try
       ++attemptedTests
       fn.test = {description, currentFile, attemptedTests}
@@ -59,7 +58,6 @@ runTests = (CoffeeScript, testsDir) ->
 
   # An async testing primitive
   global.atest = (description, fn) ->
-    console.log description
     ++attemptedTests
     fn.test = { description, currentFile, attemptedTests }
     track fn, true
@@ -126,9 +124,6 @@ runTests = (CoffeeScript, testsDir) ->
       code = instrumentCoffee filename, code.toString(), CoffeeScript, { literate: literate }
       mainModule._compile code, mainModule.filename
     catch error
-      console.log "!!! ERROR !!!"
-      console.log currentFile
-      console.log error
       failures.push {filename, error}
   return !failures.length
 

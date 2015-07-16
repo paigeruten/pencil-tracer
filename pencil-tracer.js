@@ -162,6 +162,9 @@
       if (!node) {
         return [];
       }
+      if (node.pencilTracerInstrumented) {
+        return [];
+      }
       if (node instanceof this.nodeTypes.Value && node.base instanceof this.nodeTypes.Literal && node.base.isAssignable()) {
         skip = parent instanceof this.nodeTypes.Assign && parent.context === "object" && parent.variable === node;
         if (!skip) {
@@ -172,7 +175,7 @@
       }
       node.eachChild((function(_this) {
         return function(child) {
-          if (!(child instanceof _this.nodeTypes.Block && !(node instanceof _this.nodeTypes.Parens))) {
+          if (!(child instanceof _this.nodeTypes.Block && !(node instanceof _this.nodeTypes.Parens)) && !(child instanceof _this.nodeTypes.Code)) {
             return _this.findVariables(child, node, vars);
           }
         };
@@ -336,7 +339,7 @@
         if (node.guard == null) {
           node.guard = this.coffee.nodes("true").expressions[0];
         }
-        node.guard = this.createInstrumentedExpr(node, node.guard);
+        node.guard = this.createInstrumentedExpr(node.guard, node.guard);
         return node.eachChild((function(_this) {
           return function(child) {
             return _this.instrumentTree(child, node, inClass, returnOrThrowVar);
