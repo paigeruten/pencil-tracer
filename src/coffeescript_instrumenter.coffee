@@ -138,7 +138,7 @@ class CoffeeScriptInstrumenter
           vars.push node.base.value
 
     node.eachChild (child) =>
-      @findVariables(child, node, vars) unless child instanceof @nodeTypes.Block
+      @findVariables(child, node, vars) unless child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens
 
     vars
 
