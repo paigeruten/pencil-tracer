@@ -82,26 +82,28 @@ class CoffeeScriptInstrumenter
 
   # Creates an instrumented node that calls the trace function, passing in the
   # event object.
-  createInstrumentedNode: (targetNode, eventType, returnOrThrowVar) ->
-    if targetNode instanceof @nodeTypes.IcedTailCall
-      targetNode = targetNode.value
+  createInstrumentedNode: (eventType, options={}) ->
+    if options.node instanceof @nodeTypes.IcedTailCall
+      options.node = options.node.value
 
-    locationData = targetNode.locationData
+    location = options.location ? options.node.locationData
+    if eventType isnt "leave"
+      vars = options.vars ? (if eventType is "enter" then @findArguments(options.node) else @findVariables(options.node))
 
     # Give the line and column numbers as 1-indexed values, instead of 0-indexed.
-    locationObj = "{ first_line: #{locationData.first_line + 1},"
-    locationObj += " first_column: #{locationData.first_column + 1},"
-    locationObj += " last_line: #{locationData.last_line + 1},"
-    locationObj += " last_column: #{locationData.last_column + 1} }"
+    locationObj = "{ first_line: #{location.first_line + 1},"
+    locationObj += " first_column: #{location.first_column + 1},"
+    locationObj += " last_line: #{location.last_line + 1},"
+    locationObj += " last_column: #{location.last_column + 1} }"
 
     extra =
       switch eventType
         when "before", "after"
-          "vars: {" + ("#{name}: (if typeof #{name} is 'undefined' then undefined else #{name})" for name in @findVariables(targetNode)) + "}"
+          "vars: {" + ("#{name}: (if typeof #{name} is 'undefined' then undefined else #{name})" for name in vars) + "}"
         when "enter"
-          "vars: {" + ("#{name}: #{name}" for name in @findArguments(targetNode)) + "}"
+          "vars: {" + ("#{name}: #{name}" for name in vars) + "}"
         when "leave"
-          "returnOrThrow: #{returnOrThrowVar}"
+          "returnOrThrow: #{options.returnOrThrowVar}"
 
     eventObj = "{ location: #{locationObj}, type: '#{eventType}', #{extra} }"
 
@@ -112,7 +114,7 @@ class CoffeeScriptInstrumenter
     instrumentedNode.pencilTracerInstrumented = true
     instrumentedNode
 
-  createInstrumentedExpr: (targetNode, originalExpr) ->
+  createInstrumentedExpr: (originalExpr) ->
     tempVar = @temporaryVariable "temp"
 
     assignNode = @coffee.nodes("#{tempVar} = 0").expressions[0]
@@ -120,9 +122,9 @@ class CoffeeScriptInstrumenter
 
     parensBlock = @coffee.nodes("(0)").expressions[0]
     parensBlock.base.body.expressions = []
-    parensBlock.base.body.expressions[0] = @createInstrumentedNode(targetNode, "before")
+    parensBlock.base.body.expressions[0] = @createInstrumentedNode("before", node: originalExpr)
     parensBlock.base.body.expressions[1] = assignNode
-    parensBlock.base.body.expressions[2] = @createInstrumentedNode(targetNode, "after")
+    parensBlock.base.body.expressions[2] = @createInstrumentedNode("after", node: originalExpr)
     parensBlock.base.body.expressions[3] = @coffee.nodes(tempVar).expressions[0]
     parensBlock
 
@@ -139,7 +141,10 @@ class CoffeeScriptInstrumenter
           vars.push node.base.value
 
     node.eachChild (child) =>
-      if not (child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens) and child not instanceof @nodeTypes.Code
+      skip = child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens
+      skip ||= child instanceof @nodeTypes.Code
+      skip ||= not @shouldInstrumentNode(child)
+      if not skip
         @findVariables(child, node, vars)
 
     vars
@@ -254,8 +259,8 @@ class CoffeeScriptInstrumenter
         expression = children[childIndex]
 
         if @shouldInstrumentNode(expression)
-          beforeNode = @createInstrumentedNode(expression, "before")
-          afterNode = @createInstrumentedNode(expression, "after")
+          beforeNode = @createInstrumentedNode("before", node: expression)
+          afterNode = @createInstrumentedNode("after", node: expression)
 
           children.splice(childIndex, 0, beforeNode)
           childIndex++
@@ -288,32 +293,67 @@ class CoffeeScriptInstrumenter
         childIndex++
 
     else if node instanceof @nodeTypes.For
-      node.source = @createInstrumentedExpr(node, node.source) unless node.range
+      node.source = @createInstrumentedExpr(node.source) unless node.range
+      node.guard = @createInstrumentedExpr(node.guard) if node.guard
 
-      node.guard ?= @coffee.nodes("true").expressions[0]
-      node.guard = @createInstrumentedExpr(node.guard, node.guard)
+      if node.name and node.index
+        if node.object
+          location =
+            first_line: node.name.locationData.first_line
+            first_column: node.name.locationData.first_column
+            last_line: node.index.locationData.last_line
+            last_column: node.index.locationData.last_column
+        else
+          location =
+            first_line: node.index.locationData.first_line
+            first_column: node.index.locationData.first_column
+            last_line: node.name.locationData.last_line
+            last_column: node.name.locationData.last_column
+        vars = [node.name.value, node.index.value]
+      else if node.name
+        location = node.name.locationData
+        vars = [node.name.value]
+      else if node.index
+        location = node.index.locationData
+        vars = [node.index.value]
+      else
+        location = node.locationData
+        vars = []
+
+      before = @createInstrumentedNode("before", location: location, vars: vars)
+      after = @createInstrumentedNode("after", location: location, vars: vars)
+
+      if node.guard
+        parensBlock = @coffee.nodes("(0)").expressions[0]
+        parensBlock.base.body.expressions = [before, after, node.guard]
+        node.guard = parensBlock
+      else
+        node.body.expressions.unshift(before, after)
 
       node.eachChild (child) =>
         @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.While
-      node.condition = @createInstrumentedExpr(node, node.condition)
+      node.condition = @createInstrumentedExpr(node.condition)
+
+      if node.guard
+        node.guard = @createInstrumentedExpr(node.guard)
 
       node.eachChild (child) =>
         @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.Switch
       if node.subject
-        node.subject = @createInstrumentedExpr(node, node.subject)
+        node.subject = @createInstrumentedExpr(node.subject)
 
       for caseClause in node.cases
         if caseClause[0] instanceof Array
-          caseClause[0][0] = @createInstrumentedExpr(caseClause[0][0], caseClause[0][0])
+          caseClause[0][0] = @createInstrumentedExpr(caseClause[0][0])
         else
-          caseClause[0] = @createInstrumentedExpr(caseClause[0], caseClause[0])
+          caseClause[0] = @createInstrumentedExpr(caseClause[0])
 
       node.eachChild (child) =>
         @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.If
-      node.condition = @createInstrumentedExpr(node.condition, node.condition)
+      node.condition = @createInstrumentedExpr(node.condition)
 
       node.eachChild (child) =>
         @instrumentTree(child, node, inClass, returnOrThrowVar)
@@ -335,8 +375,8 @@ class CoffeeScriptInstrumenter
       tryNode = block.expressions[1]
 
       tryNode.attempt = node.body
-      block.expressions.unshift(@createInstrumentedNode(node, "enter"))
-      tryNode.ensure.expressions.unshift(@createInstrumentedNode(node, "leave", returnOrThrowVar))
+      block.expressions.unshift(@createInstrumentedNode("enter", node: node))
+      tryNode.ensure.expressions.unshift(@createInstrumentedNode("leave", node: node, returnOrThrowVar: returnOrThrowVar))
 
       node.body = block
 

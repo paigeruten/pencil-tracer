@@ -92,61 +92,69 @@
       return null;
     };
 
-    CoffeeScriptInstrumenter.prototype.createInstrumentedNode = function(targetNode, eventType, returnOrThrowVar) {
-      var eventObj, extra, instrumentedNode, locationData, locationObj, name;
-      if (targetNode instanceof this.nodeTypes.IcedTailCall) {
-        targetNode = targetNode.value;
+    CoffeeScriptInstrumenter.prototype.createInstrumentedNode = function(eventType, options) {
+      var eventObj, extra, instrumentedNode, location, locationObj, name, ref, ref1, vars;
+      if (options == null) {
+        options = {};
       }
-      locationData = targetNode.locationData;
-      locationObj = "{ first_line: " + (locationData.first_line + 1) + ",";
-      locationObj += " first_column: " + (locationData.first_column + 1) + ",";
-      locationObj += " last_line: " + (locationData.last_line + 1) + ",";
-      locationObj += " last_column: " + (locationData.last_column + 1) + " }";
+      if (options.node instanceof this.nodeTypes.IcedTailCall) {
+        options.node = options.node.value;
+      }
+      location = (ref = options.location) != null ? ref : options.node.locationData;
+      if (eventType !== "leave") {
+        vars = (ref1 = options.vars) != null ? ref1 : (eventType === "enter" ? this.findArguments(options.node) : this.findVariables(options.node));
+      }
+      locationObj = "{ first_line: " + (location.first_line + 1) + ",";
+      locationObj += " first_column: " + (location.first_column + 1) + ",";
+      locationObj += " last_line: " + (location.last_line + 1) + ",";
+      locationObj += " last_column: " + (location.last_column + 1) + " }";
       extra = (function() {
         switch (eventType) {
           case "before":
           case "after":
             return "vars: {" + ((function() {
-              var j, len, ref, results;
-              ref = this.findVariables(targetNode);
+              var j, len, results;
               results = [];
-              for (j = 0, len = ref.length; j < len; j++) {
-                name = ref[j];
+              for (j = 0, len = vars.length; j < len; j++) {
+                name = vars[j];
                 results.push(name + ": (if typeof " + name + " is 'undefined' then undefined else " + name + ")");
               }
               return results;
-            }).call(this)) + "}";
+            })()) + "}";
           case "enter":
             return "vars: {" + ((function() {
-              var j, len, ref, results;
-              ref = this.findArguments(targetNode);
+              var j, len, results;
               results = [];
-              for (j = 0, len = ref.length; j < len; j++) {
-                name = ref[j];
+              for (j = 0, len = vars.length; j < len; j++) {
+                name = vars[j];
                 results.push(name + ": " + name);
               }
               return results;
-            }).call(this)) + "}";
+            })()) + "}";
           case "leave":
-            return "returnOrThrow: " + returnOrThrowVar;
+            return "returnOrThrow: " + options.returnOrThrowVar;
         }
-      }).call(this);
+      })();
       eventObj = "{ location: " + locationObj + ", type: '" + eventType + "', " + extra + " }";
       instrumentedNode = this.coffee.nodes(this.options.traceFunc + "(" + eventObj + ")").expressions[0];
       instrumentedNode.pencilTracerInstrumented = true;
       return instrumentedNode;
     };
 
-    CoffeeScriptInstrumenter.prototype.createInstrumentedExpr = function(targetNode, originalExpr) {
+    CoffeeScriptInstrumenter.prototype.createInstrumentedExpr = function(originalExpr) {
       var assignNode, parensBlock, tempVar;
       tempVar = this.temporaryVariable("temp");
       assignNode = this.coffee.nodes(tempVar + " = 0").expressions[0];
       assignNode.value = originalExpr;
       parensBlock = this.coffee.nodes("(0)").expressions[0];
       parensBlock.base.body.expressions = [];
-      parensBlock.base.body.expressions[0] = this.createInstrumentedNode(targetNode, "before");
+      parensBlock.base.body.expressions[0] = this.createInstrumentedNode("before", {
+        node: originalExpr
+      });
       parensBlock.base.body.expressions[1] = assignNode;
-      parensBlock.base.body.expressions[2] = this.createInstrumentedNode(targetNode, "after");
+      parensBlock.base.body.expressions[2] = this.createInstrumentedNode("after", {
+        node: originalExpr
+      });
       parensBlock.base.body.expressions[3] = this.coffee.nodes(tempVar).expressions[0];
       return parensBlock;
     };
@@ -175,7 +183,10 @@
       }
       node.eachChild((function(_this) {
         return function(child) {
-          if (!(child instanceof _this.nodeTypes.Block && !(node instanceof _this.nodeTypes.Parens)) && !(child instanceof _this.nodeTypes.Code)) {
+          skip = child instanceof _this.nodeTypes.Block && !(node instanceof _this.nodeTypes.Parens);
+          skip || (skip = child instanceof _this.nodeTypes.Code);
+          skip || (skip = !_this.shouldInstrumentNode(child));
+          if (!skip) {
             return _this.findVariables(child, node, vars);
           }
         };
@@ -274,7 +285,7 @@
     };
 
     CoffeeScriptInstrumenter.prototype.instrumentTree = function(node, parent, inClass, returnOrThrowVar) {
-      var afterNode, assignNode, beforeNode, block, caseClause, childIndex, children, expression, j, lastChild, len, ref, ref1, results, temp, tryNode;
+      var after, afterNode, assignNode, before, beforeNode, block, caseClause, childIndex, children, expression, j, lastChild, len, location, parensBlock, ref, ref1, results, temp, tryNode, vars;
       if (parent == null) {
         parent = null;
       }
@@ -303,8 +314,12 @@
         while (childIndex < children.length) {
           expression = children[childIndex];
           if (this.shouldInstrumentNode(expression)) {
-            beforeNode = this.createInstrumentedNode(expression, "before");
-            afterNode = this.createInstrumentedNode(expression, "after");
+            beforeNode = this.createInstrumentedNode("before", {
+              node: expression
+            });
+            afterNode = this.createInstrumentedNode("after", {
+              node: expression
+            });
             children.splice(childIndex, 0, beforeNode);
             childIndex++;
             children.splice(childIndex + 1, 0, afterNode);
@@ -334,19 +349,63 @@
         return results;
       } else if (node instanceof this.nodeTypes.For) {
         if (!node.range) {
-          node.source = this.createInstrumentedExpr(node, node.source);
+          node.source = this.createInstrumentedExpr(node.source);
         }
-        if (node.guard == null) {
-          node.guard = this.coffee.nodes("true").expressions[0];
+        if (node.guard) {
+          node.guard = this.createInstrumentedExpr(node.guard);
         }
-        node.guard = this.createInstrumentedExpr(node.guard, node.guard);
+        if (node.name && node.index) {
+          if (node.object) {
+            location = {
+              first_line: node.name.locationData.first_line,
+              first_column: node.name.locationData.first_column,
+              last_line: node.index.locationData.last_line,
+              last_column: node.index.locationData.last_column
+            };
+          } else {
+            location = {
+              first_line: node.index.locationData.first_line,
+              first_column: node.index.locationData.first_column,
+              last_line: node.name.locationData.last_line,
+              last_column: node.name.locationData.last_column
+            };
+          }
+          vars = [node.name.value, node.index.value];
+        } else if (node.name) {
+          location = node.name.locationData;
+          vars = [node.name.value];
+        } else if (node.index) {
+          location = node.index.locationData;
+          vars = [node.index.value];
+        } else {
+          location = node.locationData;
+          vars = [];
+        }
+        before = this.createInstrumentedNode("before", {
+          location: location,
+          vars: vars
+        });
+        after = this.createInstrumentedNode("after", {
+          location: location,
+          vars: vars
+        });
+        if (node.guard) {
+          parensBlock = this.coffee.nodes("(0)").expressions[0];
+          parensBlock.base.body.expressions = [before, after, node.guard];
+          node.guard = parensBlock;
+        } else {
+          node.body.expressions.unshift(before, after);
+        }
         return node.eachChild((function(_this) {
           return function(child) {
             return _this.instrumentTree(child, node, inClass, returnOrThrowVar);
           };
         })(this));
       } else if (node instanceof this.nodeTypes.While) {
-        node.condition = this.createInstrumentedExpr(node, node.condition);
+        node.condition = this.createInstrumentedExpr(node.condition);
+        if (node.guard) {
+          node.guard = this.createInstrumentedExpr(node.guard);
+        }
         return node.eachChild((function(_this) {
           return function(child) {
             return _this.instrumentTree(child, node, inClass, returnOrThrowVar);
@@ -354,15 +413,15 @@
         })(this));
       } else if (node instanceof this.nodeTypes.Switch) {
         if (node.subject) {
-          node.subject = this.createInstrumentedExpr(node, node.subject);
+          node.subject = this.createInstrumentedExpr(node.subject);
         }
         ref1 = node.cases;
         for (j = 0, len = ref1.length; j < len; j++) {
           caseClause = ref1[j];
           if (caseClause[0] instanceof Array) {
-            caseClause[0][0] = this.createInstrumentedExpr(caseClause[0][0], caseClause[0][0]);
+            caseClause[0][0] = this.createInstrumentedExpr(caseClause[0][0]);
           } else {
-            caseClause[0] = this.createInstrumentedExpr(caseClause[0], caseClause[0]);
+            caseClause[0] = this.createInstrumentedExpr(caseClause[0]);
           }
         }
         return node.eachChild((function(_this) {
@@ -371,7 +430,7 @@
           };
         })(this));
       } else if (node instanceof this.nodeTypes.If) {
-        node.condition = this.createInstrumentedExpr(node.condition, node.condition);
+        node.condition = this.createInstrumentedExpr(node.condition);
         return node.eachChild((function(_this) {
           return function(child) {
             return _this.instrumentTree(child, node, inClass, returnOrThrowVar);
@@ -382,8 +441,13 @@
         block = this.coffee.nodes(returnOrThrowVar + " = { type: 'return', value: undefined }\ntry\ncatch " + this.caughtErrorVar + "\n  " + returnOrThrowVar + ".type = 'throw'\n  " + returnOrThrowVar + ".value = " + this.caughtErrorVar + "\n  throw " + this.caughtErrorVar + "\nfinally");
         tryNode = block.expressions[1];
         tryNode.attempt = node.body;
-        block.expressions.unshift(this.createInstrumentedNode(node, "enter"));
-        tryNode.ensure.expressions.unshift(this.createInstrumentedNode(node, "leave", returnOrThrowVar));
+        block.expressions.unshift(this.createInstrumentedNode("enter", {
+          node: node
+        }));
+        tryNode.ensure.expressions.unshift(this.createInstrumentedNode("leave", {
+          node: node,
+          returnOrThrowVar: returnOrThrowVar
+        }));
         node.body = block;
         return this.instrumentTree(tryNode.attempt, tryNode, inClass, returnOrThrowVar);
       } else {
