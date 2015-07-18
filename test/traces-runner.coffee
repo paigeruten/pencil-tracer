@@ -11,8 +11,6 @@ Contextify = require "contextify"
 {instrumentJs, instrumentCoffee} = require "../lib/index"
 coffeeScript = require "coffee-script"
 icedCoffeeScript = require "iced-coffee-script"
-# XXX: requiring iced right after normal coffeescript caused problems in
-# suite-runner.coffee. So far, it hasn't caused problems with these tests...
 
 # Path to test/traces.
 tracesDir = path.join(path.dirname(__filename), "traces")
@@ -22,7 +20,7 @@ tracesDir = path.join(path.dirname(__filename), "traces")
 parseVars = (str) ->
   vars = {}
   while str.length > 0
-    matches = str.match /^(@?[a-zA-Z0-9_$]+)=/
+    matches = str.match /^(@?[a-zA-Z0-9_$.]+)=/
     return false unless matches
 
     varName = matches[1]

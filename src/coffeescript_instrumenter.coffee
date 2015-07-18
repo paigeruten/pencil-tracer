@@ -131,14 +131,22 @@ class CoffeeScriptInstrumenter
   findVariables: (node, parent=null, vars=[]) ->
     return [] if not node
     return [] if node.pencilTracerInstrumented
+    return [] if node instanceof @nodeTypes.Defer # TODO: handle deferral variables
 
     if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
       # Skip properties in object literals, like the 'a' in {a: b}. That's not
       # a variable (but 'b' is).
       skip = parent instanceof @nodeTypes.Assign and parent.context is "object" and parent.variable is node
       if not skip
-        if vars.indexOf(node.base.value) is -1
-          vars.push node.base.value
+        # Get the full variable name, e.g. get "@a.b" for the expression
+        # "@a.b[0].c"
+        name = if node.this then "@" else "#{node.base.value}."
+        for prop in node.properties
+          break if prop not instanceof @nodeTypes.Access or prop.soak
+          name += "#{prop.name.value}."
+        name = name.slice(0, -1) unless name is "@"
+        if vars.indexOf(name) is -1
+          vars.push name
 
     node.eachChild (child) =>
       skip = child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens

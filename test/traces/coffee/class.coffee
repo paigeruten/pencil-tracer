@@ -18,10 +18,10 @@ name = person.name()
 #     2: enter   @firstName='Jeremy' @lastName='Ruten'
 #     2: leave   return=/
 #   7: after   Person=<function> person=<object>
-#   8: before  person=<object> name=/
+#   8: before  person.name=<function> name=/
 #     4: enter
 #     5: before  @firstName='Jeremy' @lastName='Ruten'
 #     5: after   @firstName='Jeremy' @lastName='Ruten'
 #     4: leave   return='Jeremy Ruten'
-#   8: after   person=<object> name='Jeremy Ruten'
+#   8: after   person.name=<function> name='Jeremy Ruten'
 
