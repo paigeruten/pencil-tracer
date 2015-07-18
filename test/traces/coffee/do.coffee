@@ -12,11 +12,12 @@ for f in [-> a = 1]
 #   2: after   f=<function>
 #   3: before
 #     3: enter   f=<function>
-#     4: before  f=<function>
+#     4: before
 #       2: enter
 #       2: before  a=0
 #       2: after   a=1
 #       2: leave   return=1
-#     4: after   f=<function>
+#     4: after
+#     3: leave   return=1
 #   3: after
 

@@ -137,12 +137,15 @@ class CoffeeScriptInstrumenter
       # Skip properties in object literals, like the 'a' in {a: b}. That's not
       # a variable (but 'b' is).
       skip = parent instanceof @nodeTypes.Assign and parent.context is "object" and parent.variable is node
+      skip ||= parent instanceof @nodeTypes.Call and parent.variable is node and node.properties.length is 0
       if not skip
         # Get the full variable name, e.g. get "@a.b" for the expression
         # "@a.b[0].c"
         name = if node.this then "@" else "#{node.base.value}."
+        lastProp = node.properties[node.properties.length - 1]
         for prop in node.properties
-          break if prop not instanceof @nodeTypes.Access or prop.soak
+          break if prop not instanceof @nodeTypes.Access or prop.soak or (prop is lastProp and parent instanceof @nodeTypes.Call and parent.variable is node)
+
           name += "#{prop.name.value}."
         name = name.slice(0, -1) unless name is "@"
         if vars.indexOf(name) is -1

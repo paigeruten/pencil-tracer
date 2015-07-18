@@ -12,14 +12,20 @@ sam = new Snake 'Sam'
 sam.move()
 
 # Trace:
-#   1:  before  Animal=/
+#   1:  before  Animal=<function>
 #   1:  after   Animal=<function>
-#   7:  before  Snake=/ Animal=<function>
+#   2:  before
+#   2:  after
+#   4:  before
+#   4:  after
+#   7:  before  Snake=<function> Animal=<function>
 #   7:  after   Snake=<function> Animal=<function>
-#   11: before  sam=/ Snake=<function>
-#     2: enter   name='Sam'
+#   8:  before
+#   8:  after
+#   11: before  sam=/
+#     2: enter   @name='Sam'
 #     2: leave   return=/
-#   11: after   sam=<object> Snake=<function>
+#   11: after   sam=<object>
 #   12: before  sam=<object>
 #     8: enter
 #     9: before

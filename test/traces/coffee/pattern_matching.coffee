@@ -11,8 +11,8 @@ f 1, [2], {c: 3}, 4, 5, 6
 #   2: after   a=1 c=2
 #   4: before  f=/
 #   4: after   f=<function>
-#   5: before  f=<function>
-#     4: enter   a=1 b=2 c=3 d=4 e=[5, 6]
+#   5: before
+#     4: enter   a=1 b=2 c=3 @d=4 e=[5, 6]
 #     4: leave   return=/
-#   5: after   f=<function>
+#   5: after
 

@@ -7,20 +7,29 @@ for x in [1, 2]
 #   1: before  sum=/
 #   1: after   sum=0
 #   2: before
-#     2: after   x=1
+#   2: after
+#   2: before  x=1
+#   2: after   x=1
 #     3: before
-#       3: after   i=3
+#     3: after
+#     3: before  i=3
+#     3: after   i=3
 #       4: before  sum=0 i=3
 #       4: after   sum=3 i=3
-#       3: after   i=4
+#     3: before  i=4
+#     3: after   i=4
 #       4: before  sum=3 i=4
 #       4: after   sum=7 i=4
-#     2: after   x=2
+#   2: before  x=2
+#   2: after   x=2
 #     3: before
-#       3: after   i=3
+#     3: after
+#     3: before  i=3
+#     3: after   i=3
 #       4: before  sum=7 i=3
 #       4: after   sum=10 i=3
-#       3: after   i=4
+#     3: before  i=4
+#     3: after   i=4
 #       4: before  sum=10 i=4
 #       4: after   sum=14 i=4
 #

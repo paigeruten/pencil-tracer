@@ -16,7 +16,7 @@ g()
 #   1:  after   f=<function>
 #   4:  before  g=/
 #   4:  after   g=<function>
-#   12: before  g=<function>
+#   12: before
 #     4: enter
 #     5: before
 #       6: before
@@ -30,5 +30,5 @@ g()
 #       10: after
 #     5: after
 #     4: leave   return='caught it'
-#   12: after   g=<function>
+#   12: after
 

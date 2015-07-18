@@ -9,7 +9,7 @@ y = double square 3
 #   1: after   double=<function>
 #   2: before  square=/
 #   2: after   square=<function>
-#   5: before  y=/ double=<function> square=<function>
+#   5: before  y=/
 #     2: enter   x=3
 #     3: before  x=3
 #     3: after   x=3
@@ -18,5 +18,5 @@ y = double square 3
 #     1: before  x=9
 #     1: after   x=9
 #     1: leave   return=18
-#   5: after   y=18 double=<function> square=<function>
+#   5: after   y=18
 
