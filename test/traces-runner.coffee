@@ -22,7 +22,7 @@ tracesDir = path.join(path.dirname(__filename), "traces")
 parseVars = (str) ->
   vars = {}
   while str.length > 0
-    matches = str.match /^([a-zA-Z0-9_$]+)=/
+    matches = str.match /^(@?[a-zA-Z0-9_$]+)=/
     return false unless matches
 
     varName = matches[1]

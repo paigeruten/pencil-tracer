@@ -8,10 +8,14 @@ person = new Person 'Jeremy', 'Ruten'
 name = person.name()
 
 # Trace:
-#   1: before  Person=/
+#   1: before  Person=<function>
 #   1: after   Person=<function>
+#   2: before
+#   2: after
+#   4: before
+#   4: after
 #   7: before  Person=<function> person=/
-#     2: enter   firstName='Jeremy' lastName='Ruten'
+#     2: enter   @firstName='Jeremy' @lastName='Ruten'
 #     2: leave   return=/
 #   7: after   Person=<function> person=<object>
 #   8: before  person=<object> name=/

@@ -99,9 +99,9 @@ class CoffeeScriptInstrumenter
     extra =
       switch eventType
         when "before", "after"
-          "vars: {" + ("#{name}: (if typeof #{name} is 'undefined' then undefined else #{name})" for name in vars) + "}"
+          "vars: {" + ("'#{name}': (if typeof #{name} is 'undefined' then undefined else #{name})" for name in vars) + "}"
         when "enter"
-          "vars: {" + ("#{name}: #{name}" for name in vars) + "}"
+          "vars: {" + ("'#{name}': #{name}" for name in vars) + "}"
         when "leave"
           "returnOrThrow: #{options.returnOrThrowVar}"
 
@@ -159,7 +159,8 @@ class CoffeeScriptInstrumenter
         # A normal argument.
         args.push name.value
       else if name instanceof @nodeTypes.Value
-        # The argument is an @-variable, we won't deal with those for now.
+        # The argument is an @-variable.
+        args.push "@#{name.properties[0].name.value}"
       else
         # Otherwise the argument is an array or object, for destructuring
         # assignment. Here we'll delegate to findVariables(), as it will
@@ -187,7 +188,8 @@ class CoffeeScriptInstrumenter
     node not instanceof @nodeTypes.For and
     node not instanceof @nodeTypes.While and
     node not instanceof @nodeTypes.Switch and
-    node not instanceof @nodeTypes.If
+    node not instanceof @nodeTypes.If and
+    node not instanceof @nodeTypes.Class
 
   compileAst: (ast, originalCode, compileOptions) ->
     # Pilfer the SourceMap class from CoffeeScript...
@@ -257,6 +259,16 @@ class CoffeeScriptInstrumenter
 
       while childIndex < children.length
         expression = children[childIndex]
+
+        if inClass and @nodeIsObj(expression) and expression.base.properties.length > 1
+          children.splice(childIndex, 1)
+          for prop, i in expression.base.properties
+            objValue = @coffee.nodes("{}").expressions[0]
+            objValue.locationData = objValue.base.locationData = prop.locationData
+            objValue.base.properties = objValue.base.objects = [prop]
+            objValue.base.generated = expression.base.generated
+            children.splice(childIndex + i, 0, objValue)
+          expression = children[childIndex]
 
         if @shouldInstrumentNode(expression)
           beforeNode = @createInstrumentedNode("before", node: expression)
@@ -354,6 +366,14 @@ class CoffeeScriptInstrumenter
         @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.If
       node.condition = @createInstrumentedExpr(node.condition)
+
+      node.eachChild (child) =>
+        @instrumentTree(child, node, inClass, returnOrThrowVar)
+    else if node instanceof @nodeTypes.Class
+      before = @createInstrumentedNode("before", node: node)
+      after = @createInstrumentedNode("after", node: node)
+
+      node.body.expressions.unshift(before, after)
 
       node.eachChild (child) =>
         @instrumentTree(child, node, inClass, returnOrThrowVar)
