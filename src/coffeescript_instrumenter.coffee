@@ -200,7 +200,8 @@ class CoffeeScriptInstrumenter
     node not instanceof @nodeTypes.While and
     node not instanceof @nodeTypes.Switch and
     node not instanceof @nodeTypes.If and
-    node not instanceof @nodeTypes.Class
+    node not instanceof @nodeTypes.Class and
+    node not instanceof @nodeTypes.Try
 
   compileAst: (ast, originalCode, compileOptions) ->
     # Pilfer the SourceMap class from CoffeeScript...
@@ -290,25 +291,33 @@ class CoffeeScriptInstrumenter
           children.splice(childIndex + 1, 0, afterNode)
           childIndex++
 
-          # Assign the original last expression of the block to a temporary
-          # variable, and return that value at the end of the block.
-          if expression is lastChild and not expression.jumps() and expression not instanceof @nodeTypes.Await and not (inClass and @nodeIsClassProperty(expression, inClass.determineName()))
+          if expression instanceof @nodeTypes.Return
+            assignNode = @coffee.nodes("#{returnOrThrowVar}.value = 0").expressions[0]
+            assignNode.value = expression.expression || @coffee.nodes("undefined").expressions[0]
+            children[childIndex - 1] = assignNode
+            children.splice(childIndex + 1, 0, @coffee.nodes("return #{returnOrThrowVar}.value").expressions[0])
+            childIndex++
+          else if expression instanceof @nodeTypes.Throw
+            # Just using returnOrThrowVar as a temporary variable here. It and
+            # returnOrThrowVar.type will be set in the catch block.
+            assignNode = @coffee.nodes("#{returnOrThrowVar}.value = 0").expressions[0]
+            assignNode.value = expression.expression
+            children[childIndex - 1] = assignNode
+            children.splice(childIndex + 1, 0, @coffee.nodes("throw #{returnOrThrowVar}.value").expressions[0])
+            childIndex++
+          else if expression instanceof @nodeTypes.Literal and expression.value in ["break", "continue"]
+            temp = children[childIndex]
+            children[childIndex] = children[childIndex - 1]
+            children[childIndex - 1] = temp
+          else if expression is lastChild and not expression.jumps() and expression not instanceof @nodeTypes.Await and not (inClass and @nodeIsClassProperty(expression, inClass.determineName())) and not (parent instanceof @nodeTypes.Try and parent.ensure is node)
+            # Assign the original last expression of the block to a temporary
+            # variable, and return that value at the end of the block.
             assignNode = @coffee.nodes("#{returnOrThrowVar}.value = 0").expressions[0]
             assignNode.value = expression
             children[childIndex - 1] = assignNode
             children.splice(childIndex + 1, 0, @coffee.nodes("#{returnOrThrowVar}.value").expressions[0])
             children[childIndex + 1].icedHasAutocbFlag = expression.icedHasAutocbFlag
             childIndex++
-          else if expression instanceof @nodeTypes.Return
-            assignNode = @coffee.nodes("#{returnOrThrowVar}.value = 0").expressions[0]
-            assignNode.value = expression.expression || @coffee.nodes("undefined").expressions[0]
-            children[childIndex - 1] = assignNode
-            children.splice(childIndex + 1, 0, @coffee.nodes("return #{returnOrThrowVar}.value").expressions[0])
-            childIndex++
-          else if expression instanceof @nodeTypes.Literal and expression.value in ["break", "continue"]
-            temp = children[childIndex]
-            children[childIndex] = children[childIndex - 1]
-            children[childIndex - 1] = temp
 
         # Recursively instrument the children of this node.
         @instrumentTree(expression, node, inClass, returnOrThrowVar)
@@ -385,6 +394,15 @@ class CoffeeScriptInstrumenter
       after = @createInstrumentedNode("after", node: node)
 
       node.body.expressions.unshift(before, after)
+
+      node.eachChild (child) =>
+        @instrumentTree(child, node, inClass, returnOrThrowVar)
+    else if node instanceof @nodeTypes.Try
+      if node.recovery and node.errorVariable
+        before = @createInstrumentedNode("before", node: node.errorVariable, vars: [node.errorVariable.value])
+        after = @createInstrumentedNode("after", node: node.errorVariable, vars: [node.errorVariable.value])
+
+        node.recovery.expressions.unshift(before, after)
 
       node.eachChild (child) =>
         @instrumentTree(child, node, inClass, returnOrThrowVar)

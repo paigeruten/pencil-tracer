@@ -18,17 +18,17 @@ g()
 #   4:  after   g=<function>
 #   12: before
 #     4: enter
-#     5: before
-#       6: before
-#         1: enter
-#         2: before  Error=<function>
-#         2: after   Error=<function>
-#         1: leave   throw=<object>
-#       8: before
-#       8: after
-#       10: before
-#       10: after
-#     5: after
+#     6: before
+#       1: enter
+#       2: before
+#       2: after
+#       1: leave   throw=<object>
+#     7: before  err=<object>
+#     7: after   err=<object>
+#     8: before
+#     8: after
+#     10: before
+#     10: after
 #     4: leave   return='caught it'
 #   12: after
 
