@@ -201,7 +201,8 @@ class CoffeeScriptInstrumenter
     node not instanceof @nodeTypes.Switch and
     node not instanceof @nodeTypes.If and
     node not instanceof @nodeTypes.Class and
-    node not instanceof @nodeTypes.Try
+    node not instanceof @nodeTypes.Try and
+    node not instanceof @nodeTypes.Await
 
   compileAst: (ast, originalCode, compileOptions) ->
     # Pilfer the SourceMap class from CoffeeScript...

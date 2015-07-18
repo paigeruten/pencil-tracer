@@ -245,7 +245,7 @@
     };
 
     CoffeeScriptInstrumenter.prototype.shouldInstrumentNode = function(node) {
-      return !node.pencilTracerInstrumented && !(node instanceof this.nodeTypes.IcedRuntime) && (!(node instanceof this.nodeTypes.IcedTailCall) || node.value) && !(node instanceof this.nodeTypes.Comment) && !(node instanceof this.nodeTypes.For) && !(node instanceof this.nodeTypes.While) && !(node instanceof this.nodeTypes.Switch) && !(node instanceof this.nodeTypes.If) && !(node instanceof this.nodeTypes.Class) && !(node instanceof this.nodeTypes.Try);
+      return !node.pencilTracerInstrumented && !(node instanceof this.nodeTypes.IcedRuntime) && (!(node instanceof this.nodeTypes.IcedTailCall) || node.value) && !(node instanceof this.nodeTypes.Comment) && !(node instanceof this.nodeTypes.For) && !(node instanceof this.nodeTypes.While) && !(node instanceof this.nodeTypes.Switch) && !(node instanceof this.nodeTypes.If) && !(node instanceof this.nodeTypes.Class) && !(node instanceof this.nodeTypes.Try) && !(node instanceof this.nodeTypes.Await);
     };
 
     CoffeeScriptInstrumenter.prototype.compileAst = function(ast, originalCode, compileOptions) {

@@ -5,7 +5,7 @@ x = 0
 if true
   await
     f defer x
-  'tail'
+  x
 
 # Trace:
 #   1: before  f=/
@@ -14,14 +14,12 @@ if true
 #   4: after   x=0
 #   5: before
 #   5: after
-#   6: before
-#   6: after
-#   7: before  x=/
+#   7: before
 #     1: enter   autocb=<function>
-#     2: before  autocb=<function>
-#     2: after   autocb=<function>
-#     1: leave   return=/
-#   7: after   x=3
-#   8: before
-#   8: after
+#     2: before
+#     2: after
+#     1: leave   return=3
+#   7: after
+#   8: before  x=3
+#   8: after   x=3
 
