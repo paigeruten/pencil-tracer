@@ -1,8 +1,6 @@
 # TODO
 
 * CoffeeScript
-    * Tracing
-        * Consistent tracing (i.e. pass the trace tests)
     * Variable Tracking
         * Track variables in deferrals for Iced CoffeeScript
         * Function calls
