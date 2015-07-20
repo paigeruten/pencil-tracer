@@ -112,25 +112,25 @@
         switch (eventType) {
           case "before":
           case "after":
-            return "vars: {" + ((function() {
+            return "vars: [" + ((function() {
               var j, len, results;
               results = [];
               for (j = 0, len = vars.length; j < len; j++) {
                 name = vars[j];
-                results.push("'" + name + "': (if typeof " + name + " is 'undefined' then undefined else " + name + ")");
+                results.push("{name: '" + name + "', value: (if typeof " + name + " is 'undefined' then undefined else " + name + ")}");
               }
               return results;
-            })()) + "}";
+            })()) + "]";
           case "enter":
-            return "vars: {" + ((function() {
+            return "vars: [" + ((function() {
               var j, len, results;
               results = [];
               for (j = 0, len = vars.length; j < len; j++) {
                 name = vars[j];
-                results.push("'" + name + "': " + name);
+                results.push("{name: '" + name + "', value: " + name + "}");
               }
               return results;
-            })()) + "}";
+            })()) + "]";
           case "leave":
             return "returnOrThrow: " + options.returnOrThrowVar;
         }
@@ -230,6 +230,41 @@
         }
       }
       return args;
+    };
+
+    CoffeeScriptInstrumenter.prototype.findFunctionCalls = function(node, parent, vars) {
+      var lastProp, name;
+      if (vars == null) {
+        vars = [];
+      }
+      if (node instanceof this.nodeTypes.Call) {
+        name = null;
+        if (node.variable.properties.length > 0) {
+          lastProp = node.variable.properties[node.variable.properties.length - 1];
+          if (lastProp instanceof this.nodeTypes.Access) {
+            name = lastProp.name.value;
+          }
+        } else if (node.variable.base instanceof this.nodeTypes.Literal) {
+          name = node.variable.base.value;
+        }
+        node.pencilTracerReturnVar = this.temporaryVariable("returnVar");
+        vars.push({
+          name: name,
+          tempVar: node.pencilTracerReturnVar
+        });
+      }
+      node.eachChild((function(_this) {
+        return function(child) {
+          var skip;
+          skip = child instanceof _this.nodeTypes.Block && !(node instanceof _this.nodeTypes.Parens);
+          skip || (skip = child instanceof _this.nodeTypes.Code);
+          skip || (skip = !_this.shouldInstrumentNode(child));
+          if (!skip) {
+            return _this.findFunctionCalls(child, node, vars);
+          }
+        };
+      })(this));
+      return vars;
     };
 
     CoffeeScriptInstrumenter.prototype.nodeIsObj = function(node) {

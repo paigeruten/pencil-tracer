@@ -99,9 +99,9 @@ class CoffeeScriptInstrumenter
     extra =
       switch eventType
         when "before", "after"
-          "vars: {" + ("'#{name}': (if typeof #{name} is 'undefined' then undefined else #{name})" for name in vars) + "}"
+          "vars: [" + ("{name: '#{name}', value: (if typeof #{name} is 'undefined' then undefined else #{name})}" for name in vars) + "]"
         when "enter"
-          "vars: {" + ("'#{name}': #{name}" for name in vars) + "}"
+          "vars: [" + ("{name: '#{name}', value: #{name}}" for name in vars) + "]"
         when "leave"
           "returnOrThrow: #{options.returnOrThrowVar}"
 
@@ -178,6 +178,32 @@ class CoffeeScriptInstrumenter
         # recursively find all identifiers in the structure.
         args.push.apply(args, @findVariables(name))
     args
+
+  findFunctionCalls: (node, parent, vars=[]) ->
+    #return [] if not node
+    #return [] if node.pencilTracerInstrumented
+
+    if node instanceof @nodeTypes.Call
+      # Get the function name, e.g. get "func" for the expression "a.func()"
+      name = null
+      if node.variable.properties.length > 0
+        lastProp = node.variable.properties[node.variable.properties.length - 1]
+        if lastProp instanceof @nodeTypes.Access
+          name = lastProp.name.value
+      else if node.variable.base instanceof @nodeTypes.Literal
+        name = node.variable.base.value
+
+      node.pencilTracerReturnVar = @temporaryVariable("returnVar")
+      vars.push {name: name, tempVar: node.pencilTracerReturnVar}
+
+    node.eachChild (child) =>
+      skip = child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens
+      skip ||= child instanceof @nodeTypes.Code
+      skip ||= not @shouldInstrumentNode(child)
+      if not skip
+        @findFunctionCalls(child, node, vars)
+
+    vars
 
   nodeIsObj: (node) ->
     node instanceof @nodeTypes.Value and node.isObject(true)

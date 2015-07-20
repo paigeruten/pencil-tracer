@@ -6,7 +6,7 @@ fs = require "fs"
 path = require "path"
 util = require "util"
 Contextify = require "contextify"
-{isEqual} = require "underscore"
+{isEqual, sortBy} = require "underscore"
 
 {instrumentJs, instrumentCoffee} = require "../lib/index"
 coffeeScript = require "coffee-script"
@@ -18,7 +18,7 @@ tracesDir = path.join(path.dirname(__filename), "traces")
 # Parse a string like "x=1 f=<function> o={ary: [1, 2, 3]}" into an object like
 # { x: "1", f: "<function>", o: "{ary: [1, 2, 3]}" }.
 parseVars = (str) ->
-  vars = {}
+  vars = []
   while str.length > 0
     matches = str.match /^(@?[a-zA-Z0-9_$.]+)=/
     return false unless matches
@@ -39,12 +39,12 @@ parseVars = (str) ->
         else if str[i] in closers or (str[i] in quotes and stack[stack.length - 1] is str[i])
           stack = stack.slice(0, stack.length - 1)
         i += 1
-      vars[varName] = str.slice(0, i)
+      vars.push {name: varName, value: str.slice(0, i)}
       str = str.slice(i)
     else
       valueMatch = str.match /^\S+/
       return false unless valueMatch
-      vars[varName] = valueMatch[0]
+      vars.push {name: varName, value: valueMatch[0]}
       str = str.slice(valueMatch[0].length)
 
     spaceMatch = str.match /^\s*/
@@ -68,10 +68,7 @@ parseTraceLine = (line) ->
     when "before", "after", "enter"
       event.vars = vars
     when "leave"
-      if "return" of vars
-        event.returnOrThrow = { type: "return", value: vars.return }
-      else
-        event.returnOrThrow = { type: "throw", value: vars.throw }
+      event.returnOrThrow = { type: vars[0].name, value: vars[0].value }
   event
 
 abbrevValue = (val, isActual) ->
@@ -101,25 +98,28 @@ traceToString = (trace) ->
             { "return": event.returnOrThrow.value }
           else
             { "throw": event.returnOrThrow.value }
-    varsStr = ("#{name}=#{abbrevValue(vars[name], isActual)}" for name of vars).join(" ")
+    varsStr = ("#{v.name}=#{abbrevValue(v.value, isActual)}" for v in vars).join(" ")
     str += "\n    #{line}#{type}  #{varsStr}"
   str
 
 varsEq = (expected, actual) ->
-  for name of expected
-    return false unless name of actual
+  return false if expected.length isnt actual.length
 
-    expectedVal = expected[name]
-    expectedVal = "<undefined>" if expectedVal is "/"
-    if expectedVal[0] is "<"
-      expectedType = expectedVal.slice(1, expectedVal.length - 1)
-      return false unless typeof actual[name] is expectedType
+  expected = sortBy(expected, "name")
+  actual = sortBy(actual, "name")
+  for expectedVar, i in expected
+    actualVar = actual[i]
+    return false if expectedVar.name isnt actualVar.name
+
+    actualValue = actualVar.value
+    expectedValue = expectedVar.value
+    expectedValue = "<undefined>" if expectedValue is "/"
+    if expectedValue[0] is "<"
+      expectedType = expectedValue.slice(1, expectedValue.length - 1)
+      return false if typeof actualValue isnt expectedType
     else
-      expectedVal = eval(expectedVal)
-      return false unless isEqual(expectedVal, actual[name])
-
-  for name of actual
-    return false unless name of expected
+      expectedValue = eval(expectedValue)
+      return false if not isEqual(expectedValue, actualValue)
 
   true
 
@@ -132,7 +132,7 @@ eventEq = (expected, actual) ->
       varsEq(expected.vars, actual.vars)
     when "leave"
       expected.returnOrThrow.type is actual.returnOrThrow.type and
-      varsEq({value: expected.returnOrThrow.value}, {value: actual.returnOrThrow.value})
+      varsEq([{name: "returnOrThrow", value: expected.returnOrThrow.value}], [{name: "returnOrThrow", value: actual.returnOrThrow.value}])
 
 # Compare an expected trace with the actual trace of a file.
 traceEq = (expected, actual) ->

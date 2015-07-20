@@ -34,7 +34,7 @@ Both functions return a string containing the instrumented code. When run, the i
         last_line: 1,
         last_column: 5
       },
-      vars: { x: 3 }
+      vars: [{ name: 'x', value: 3 }]
     }
 
 `type` is `before` or `after` for normal executed code. It can also be `enter`
@@ -67,14 +67,14 @@ var y = square(3);
 Here is what the program looks like after being instrumented:
 
 ```javascript
-pencilTrace({type: 'before', location: {first_line: 1, ...}, vars: {square: square}});
+pencilTrace({type: 'before', location: {first_line: 1, ...}, vars: [{name: 'square', value: square}]});
 var square = function (x) {
   var _returnOrThrow = { type: 'return', value: undefined };
-  pencilTrace({type: 'enter', location: {first_line: 1, ...}, vars: {x: x}});
+  pencilTrace({type: 'enter', location: {first_line: 1, ...}, vars: [{name: 'x', value: x}]});
   try {
-    pencilTrace({type: 'before', location: {first_line: 2, ...}, vars: {x: x}});
+    pencilTrace({type: 'before', location: {first_line: 2, ...}, vars: [{name: 'x', value: x}]});
     _returnOrThrow.value = x * x;
-    pencilTrace({type: 'after', location: {first_line: 2, ...}, vars: {x: x}});
+    pencilTrace({type: 'after', location: {first_line: 2, ...}, vars: [{name: 'x', value: x}]});
     return _returnOrThrow.value;
   } catch (err) {
     _returnOrThrow.type = 'throw';
@@ -84,11 +84,11 @@ var square = function (x) {
     pencilTrace({type: 'leave', location: {first_line: 1, ...}, returnOrThrow: _returnOrThrow});
   }
 };
-pencilTrace({type: 'after', location: {first_line: 1, ...}, vars: {square: square}});
+pencilTrace({type: 'after', location: {first_line: 1, ...}, vars: [{name: 'square', value: square}]});
 
-pencilTrace({type: 'before', location: {first_line: 5, ...}, vars: {y: y, square: square}});
+pencilTrace({type: 'before', location: {first_line: 5, ...}, vars: [{name: 'y', value: y}, {name: 'square', value: square}]});
 var y = square(3);
-pencilTrace({type: 'after', location: {first_line: 5, ...}, vars: {y: y, square: square}});
+pencilTrace({type: 'after', location: {first_line: 5, ...}, vars: [{name: 'y', value: y}, {name: 'square', value: square}]});
 ```
 
 (The `location` property also includes `first_column`, `last_line`, and
@@ -108,14 +108,14 @@ var pencilTrace = function (event) {
 This would produce the following trace of the program above:
 
 ```javascript
-[{type: 'before', location: {first_line: 1, ...}, vars: {square: undefined}},
- {type: 'after',  location: {first_line: 1, ...}, vars: {square: <function>}},
- {type: 'before', location: {first_line: 5, ...}, vars: {y: undefined, square: <function>}},
- {type: 'enter',  location: {first_line: 1, ...}, vars: {x: 3}},
- {type: 'before', location: {first_line: 2, ...}, vars: {x: 3}},
- {type: 'after',  location: {first_line: 2, ...}, vars: {x: 3}},
+[{type: 'before', location: {first_line: 1, ...}, vars: [{name: 'square', value: undefined}]},
+ {type: 'after',  location: {first_line: 1, ...}, vars: [{name: 'square', value: <function>}]},
+ {type: 'before', location: {first_line: 5, ...}, vars: [{name: 'y', value: undefined}, {name: 'square', value: <function>}]},
+ {type: 'enter',  location: {first_line: 1, ...}, vars: [{name: 'x', value: 3}]},
+ {type: 'before', location: {first_line: 2, ...}, vars: [{name: 'x', value: 3}]},
+ {type: 'after',  location: {first_line: 2, ...}, vars: [{name: 'x', value: 3}]},
  {type: 'leave',  location: {first_line: 1, ...}, returnOrThrow: {type: 'return', value: 9},
- {type: 'after',  location: {first_line: 5, ...}, vars: {y: 9, square: <function>}}]
+ {type: 'after',  location: {first_line: 5, ...}, vars: [{name: 'y', value: 9}, {name: 'square', value: <function>}]}]
 ```
 
 As this example shows, each statement in the original program will trigger a
@@ -153,7 +153,7 @@ values.
 {
   type: 'before',
   location: { ... },
-  vars: { ... }
+  vars: [ ... ]
 }
 ```
 
@@ -168,7 +168,7 @@ be available in `vars`.
 {
   type: 'after',
   location: { ... },
-  vars: { ... }
+  vars: [ ... ]
 }
 ```
 
@@ -182,7 +182,7 @@ entire function body.
 {
   type: 'enter',
   location: { ... },
-  vars: { ... }
+  vars: [ ... ]
 }
 ```
 
