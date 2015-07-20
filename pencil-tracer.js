@@ -167,15 +167,6 @@
       if (vars == null) {
         vars = [];
       }
-      if (!node) {
-        return [];
-      }
-      if (node.pencilTracerInstrumented) {
-        return [];
-      }
-      if (node instanceof this.nodeTypes.Defer) {
-        return [];
-      }
       if (node instanceof this.nodeTypes.Value && node.base instanceof this.nodeTypes.Literal && node.base.isAssignable()) {
         skip = parent instanceof this.nodeTypes.Assign && parent.context === "object" && parent.variable === node;
         skip || (skip = parent instanceof this.nodeTypes.Call && parent.variable === node && node.properties.length === 0);
@@ -203,6 +194,7 @@
           skip = child instanceof _this.nodeTypes.Block && !(node instanceof _this.nodeTypes.Parens);
           skip || (skip = child instanceof _this.nodeTypes.Code);
           skip || (skip = !_this.shouldInstrumentNode(child));
+          skip || (skip = node instanceof _this.nodeTypes.Defer);
           if (!skip) {
             return _this.findVariables(child, node, vars);
           }
@@ -220,13 +212,15 @@
       ref = codeNode.params;
       for (j = 0, len = ref.length; j < len; j++) {
         paramNode = ref[j];
-        name = paramNode.name;
-        if (name instanceof this.nodeTypes.Literal) {
-          args.push(name.value);
-        } else if (name instanceof this.nodeTypes.Value) {
-          args.push("@" + name.properties[0].name.value);
-        } else {
-          args.push.apply(args, this.findVariables(name));
+        if (paramNode instanceof this.nodeTypes.Param) {
+          name = paramNode.name;
+          if (name instanceof this.nodeTypes.Literal) {
+            args.push(name.value);
+          } else if (name instanceof this.nodeTypes.Value) {
+            args.push("@" + name.properties[0].name.value);
+          } else {
+            args.push.apply(args, this.findVariables(name));
+          }
         }
       }
       return args;

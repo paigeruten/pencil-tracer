@@ -129,10 +129,6 @@ class CoffeeScriptInstrumenter
     parensBlock
 
   findVariables: (node, parent=null, vars=[]) ->
-    return [] if not node
-    return [] if node.pencilTracerInstrumented
-    return [] if node instanceof @nodeTypes.Defer # TODO: handle deferral variables
-
     if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
       # Skip properties in object literals, like the 'a' in {a: b}. That's not
       # a variable (but 'b' is).
@@ -155,6 +151,7 @@ class CoffeeScriptInstrumenter
       skip = child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens
       skip ||= child instanceof @nodeTypes.Code
       skip ||= not @shouldInstrumentNode(child)
+      skip ||= node instanceof @nodeTypes.Defer # TODO: handle deferral variables
       if not skip
         @findVariables(child, node, vars)
 
@@ -165,24 +162,23 @@ class CoffeeScriptInstrumenter
 
     args = []
     for paramNode in codeNode.params
-      name = paramNode.name
-      if name instanceof @nodeTypes.Literal
-        # A normal argument.
-        args.push name.value
-      else if name instanceof @nodeTypes.Value
-        # The argument is an @-variable.
-        args.push "@#{name.properties[0].name.value}"
-      else
-        # Otherwise the argument is an array or object, for destructuring
-        # assignment. Here we'll delegate to findVariables(), as it will
-        # recursively find all identifiers in the structure.
-        args.push.apply(args, @findVariables(name))
+      # Skip Expansion nodes, as in "(a, ..., b) ->".
+      if paramNode instanceof @nodeTypes.Param
+        name = paramNode.name
+        if name instanceof @nodeTypes.Literal
+          # A normal argument.
+          args.push name.value
+        else if name instanceof @nodeTypes.Value
+          # The argument is an @-variable.
+          args.push "@#{name.properties[0].name.value}"
+        else
+          # Otherwise the argument is an array or object, for destructuring
+          # assignment. Here we'll delegate to findVariables(), as it will
+          # recursively find all identifiers in the structure.
+          args.push.apply(args, @findVariables(name))
     args
 
   findFunctionCalls: (node, parent, vars=[]) ->
-    #return [] if not node
-    #return [] if node.pencilTracerInstrumented
-
     if node instanceof @nodeTypes.Call
       # Get the function name, e.g. get "func" for the expression "a.func()"
       name = null

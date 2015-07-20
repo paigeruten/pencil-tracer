@@ -124,7 +124,6 @@ runTests = (CoffeeScript, testsDir) ->
       code = instrumentCoffee filename, code.toString(), CoffeeScript, { literate: literate }
       mainModule._compile code, mainModule.filename
     catch error
-      console.log error
       failures.push {filename, error}
   return !failures.length
 
