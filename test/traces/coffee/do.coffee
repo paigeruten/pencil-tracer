@@ -17,7 +17,7 @@ for f in [-> a = 1]
 #       2: before  a=0
 #       2: after   a=1
 #       2: leave   return=1
-#     4: after
+#     4: after   f()=1
 #     3: leave   return=1
-#   3: after
+#   3: after   <anonymous>()=1
 

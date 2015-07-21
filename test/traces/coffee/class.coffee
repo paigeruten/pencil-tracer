@@ -17,11 +17,11 @@ name = person.name()
 #   7: before  person=/
 #     2: enter   @firstName='Jeremy' @lastName='Ruten'
 #     2: leave   return=/
-#   7: after   person=<object>
+#   7: after   person=<object> Person()=<object>
 #   8: before  person=<object> name=/
 #     4: enter
 #     5: before  @firstName='Jeremy' @lastName='Ruten'
 #     5: after   @firstName='Jeremy' @lastName='Ruten'
 #     4: leave   return='Jeremy Ruten'
-#   8: after   person=<object> name='Jeremy Ruten'
+#   8: after   person=<object> name='Jeremy Ruten' name()='Jeremy Ruten'
 

@@ -196,7 +196,9 @@ class CoffeeScriptInstrumenter
       unless soak
         # Get the function name, e.g. get "func" for the expression "a.func()"
         name = "<anonymous>"
-        if node.variable instanceof @nodeTypes.Value
+        if node.isSuper
+          name = "super"
+        else if node.variable instanceof @nodeTypes.Value
           if node.variable.properties.length > 0
             lastProp = node.variable.properties[node.variable.properties.length - 1]
             if lastProp instanceof @nodeTypes.Access

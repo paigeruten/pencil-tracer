@@ -23,7 +23,7 @@ shape 4
 #     4: before
 #     4: after
 #     1: leave   return='invalid input'
-#   10: after
+#   10: after   shape()='invalid input'
 #   11: before
 #     1: enter   sides=3
 #     2: before  sides=3
@@ -35,7 +35,7 @@ shape 4
 #     6: before
 #     6: after
 #     1: leave   return='triangle'
-#   11: after
+#   11: after   shape()='triangle'
 #   12: before
 #     1: enter   sides=4
 #     2: before  sides=4
@@ -47,5 +47,5 @@ shape 4
 #     8: before
 #     8: after
 #     1: leave   return='too complicated'
-#   12: after
+#   12: after   shape()='too complicated'
 

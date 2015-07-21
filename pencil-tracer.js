@@ -267,7 +267,9 @@
         }
         if (!soak) {
           name = "<anonymous>";
-          if (node.variable instanceof this.nodeTypes.Value) {
+          if (node.isSuper) {
+            name = "super";
+          } else if (node.variable instanceof this.nodeTypes.Value) {
             if (node.variable.properties.length > 0) {
               lastProp = node.variable.properties[node.variable.properties.length - 1];
               if (lastProp instanceof this.nodeTypes.Access) {

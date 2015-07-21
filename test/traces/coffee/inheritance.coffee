@@ -25,7 +25,7 @@ sam.move()
 #   11: before  sam=/
 #     2: enter   @name='Sam'
 #     2: leave   return=/
-#   11: after   sam=<object>
+#   11: after   sam=<object> Snake()=<object>
 #   12: before  sam=<object>
 #     8: enter
 #     9: before
@@ -33,7 +33,7 @@ sam.move()
 #       5: before  @name='Sam' meters=5
 #       5: after   @name='Sam' meters=5
 #       4: leave   return='Sam moved 5m'
-#     9: after
+#     9: after   super()='Sam moved 5m'
 #     8: leave   return='Sam moved 5m by slithering'
-#   12: after   sam=<object>
+#   12: after   sam=<object> move()='Sam moved 5m by slithering'
 

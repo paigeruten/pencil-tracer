@@ -13,7 +13,7 @@ f()
 #       2: before
 #       2: after
 #       2: leave   return=3
-#     2: after
+#     2: after   <anonymous>()=3
 #     1: leave   return=3
-#   4: after
+#   4: after   f()=3
 

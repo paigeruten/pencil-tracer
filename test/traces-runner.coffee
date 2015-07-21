@@ -20,7 +20,7 @@ tracesDir = path.join(path.dirname(__filename), "traces")
 parseVars = (str) ->
   vars = []
   while str.length > 0
-    matches = str.match /^(@?[a-zA-Z0-9_$.]+)=/
+    matches = str.match /^(@?[a-zA-Z0-9_$.()<>]+)=/
     return false unless matches
 
     varName = matches[1]
@@ -99,6 +99,9 @@ traceToString = (trace) ->
           else
             { "throw": event.returnOrThrow.value }
     varsStr = ("#{v.name}=#{abbrevValue(v.value, isActual)}" for v in vars).join(" ")
+    if event.functionCalls
+      varsStr += " " if varsStr.length > 0
+      varsStr += ("#{f.name}()=#{abbrevValue(f.value, isActual)}" for f in event.functionCalls).join(" ")
     str += "\n    #{line}#{type}  #{varsStr}"
   str
 
@@ -128,8 +131,13 @@ eventEq = (expected, actual) ->
   return false unless expected.location.first_line is actual.location.first_line
 
   switch expected.type
-    when "before", "after", "enter"
+    when "before", "enter"
       varsEq(expected.vars, actual.vars)
+    when "after"
+      varsAndFunctions = actual.vars.slice()
+      for f in actual.functionCalls
+        varsAndFunctions.push({name: "#{f.name}()", value: f.value})
+      varsEq(expected.vars, varsAndFunctions)
     when "leave"
       expected.returnOrThrow.type is actual.returnOrThrow.type and
       varsEq([{name: "returnOrThrow", value: expected.returnOrThrow.value}], [{name: "returnOrThrow", value: actual.returnOrThrow.value}])

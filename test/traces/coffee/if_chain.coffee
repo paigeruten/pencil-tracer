@@ -20,7 +20,7 @@ message(20)
 #     3: before
 #     3: after
 #     1: leave   return='good morning'
-#   9:  after
+#   9:  after   message()='good morning'
 #   10: before
 #     1: enter   hour=13
 #     2: before  hour=13
@@ -30,7 +30,7 @@ message(20)
 #     5: before
 #     5: after
 #     1: leave   return='good afternoon'
-#   10: after
+#   10: after   message()='good afternoon'
 #   11: before
 #     1: enter   hour=20
 #     2: before  hour=20
@@ -40,5 +40,5 @@ message(20)
 #     7: before
 #     7: after
 #     1: leave   return='good evening'
-#   11: after
+#   11: after   message()='good evening'
 

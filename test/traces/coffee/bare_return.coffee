@@ -10,5 +10,5 @@ f()
 #     2: before
 #     2: after
 #     1: leave   return=/
-#   3: after
+#   3: after   f()=/
 

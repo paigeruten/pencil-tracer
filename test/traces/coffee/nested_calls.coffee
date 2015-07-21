@@ -18,7 +18,7 @@ f 3
 #       2: before  x=3
 #       2: after   x=3
 #       1: leave   return=4
-#     5: after   x=3
+#     5: after   x=3 g()=4
 #     4: leave   return=4
-#   7: after
+#   7: after   f()=4
 

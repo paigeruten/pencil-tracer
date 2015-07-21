@@ -21,7 +21,7 @@ g()
 #     6: before
 #       1: enter
 #       2: before
-#       2: after
+#       2: after   Error()=<object>
 #       1: leave   throw=<object>
 #     7: before  err=<object>
 #     7: after   err=<object>
@@ -30,5 +30,5 @@ g()
 #     10: before
 #     10: after
 #     4: leave   return='caught it'
-#   12: after
+#   12: after   g()='caught it'
 

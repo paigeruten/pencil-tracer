@@ -67,6 +67,8 @@ var y = square(3);
 Here is what the program looks like after being instrumented:
 
 ```javascript
+var _returnVar;
+
 pencilTrace({type: 'before', location: {first_line: 1, ...}, vars: [{name: 'square', value: square}]});
 var square = function (x) {
   var _returnOrThrow = { type: 'return', value: undefined };
@@ -86,9 +88,9 @@ var square = function (x) {
 };
 pencilTrace({type: 'after', location: {first_line: 1, ...}, vars: [{name: 'square', value: square}]});
 
-pencilTrace({type: 'before', location: {first_line: 5, ...}, vars: [{name: 'y', value: y}, {name: 'square', value: square}]});
-var y = square(3);
-pencilTrace({type: 'after', location: {first_line: 5, ...}, vars: [{name: 'y', value: y}, {name: 'square', value: square}]});
+pencilTrace({type: 'before', location: {first_line: 5, ...}, vars: [{name: 'y', value: y}]});
+var y = (_returnVar = square(3));
+pencilTrace({type: 'after', location: {first_line: 5, ...}, vars: [{name: 'y', value: y}], functionCalls: [{name: 'square', value: _returnVar}]});
 ```
 
 (The `location` property also includes `first_column`, `last_line`, and
@@ -110,12 +112,12 @@ This would produce the following trace of the program above:
 ```javascript
 [{type: 'before', location: {first_line: 1, ...}, vars: [{name: 'square', value: undefined}]},
  {type: 'after',  location: {first_line: 1, ...}, vars: [{name: 'square', value: <function>}]},
- {type: 'before', location: {first_line: 5, ...}, vars: [{name: 'y', value: undefined}, {name: 'square', value: <function>}]},
+ {type: 'before', location: {first_line: 5, ...}, vars: [{name: 'y', value: undefined}]},
  {type: 'enter',  location: {first_line: 1, ...}, vars: [{name: 'x', value: 3}]},
  {type: 'before', location: {first_line: 2, ...}, vars: [{name: 'x', value: 3}]},
  {type: 'after',  location: {first_line: 2, ...}, vars: [{name: 'x', value: 3}]},
  {type: 'leave',  location: {first_line: 1, ...}, returnOrThrow: {type: 'return', value: 9},
- {type: 'after',  location: {first_line: 5, ...}, vars: [{name: 'y', value: 9}, {name: 'square', value: <function>}]}]
+ {type: 'after',  location: {first_line: 5, ...}, vars: [{name: 'y', value: 9}], functionCalls: [{name: 'square', value: 9}]}]
 ```
 
 As this example shows, each statement in the original program will trigger a
@@ -162,13 +164,15 @@ values.
 For every `'before'` event, there is an `'after'` event with the same
 `location` and the same variable names in `vars`, but if any variables were
 updated by the code that this event is associated with, their new values will
-be available in `vars`.
+be available in `vars`. `after` events also contain a `functionCalls`
+property containing names and values of function calls used in the code.
 
 ```javascript
 {
   type: 'after',
   location: { ... },
-  vars: [ ... ]
+  vars: [ ... ],
+  functionCalls: [ ... ]
 }
 ```
 

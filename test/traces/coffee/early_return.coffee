@@ -15,7 +15,7 @@ isEven(6)
 #     3: before
 #     3: after
 #     1: leave   return=false
-#   5: after
+#   5: after   isEven()=false
 #   6: before
 #     1: enter   n=6
 #     2: before  n=6
@@ -23,5 +23,5 @@ isEven(6)
 #     2: before
 #     2: after
 #     1: leave   return=true
-#   6: after
+#   6: after   isEven()=true
 

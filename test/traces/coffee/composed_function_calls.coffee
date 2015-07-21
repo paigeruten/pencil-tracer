@@ -18,5 +18,5 @@ y = double square 3
 #     1: before  x=9
 #     1: after   x=9
 #     1: leave   return=18
-#   5: after   y=18
+#   5: after   y=18 square()=9 double()=18
 

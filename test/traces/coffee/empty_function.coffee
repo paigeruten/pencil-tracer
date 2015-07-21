@@ -8,5 +8,5 @@ f()
 #   3: before
 #     1: enter
 #     1: leave   return=/
-#   3: after
+#   3: after   f()=/
 

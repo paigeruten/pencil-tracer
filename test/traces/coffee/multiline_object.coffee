@@ -21,5 +21,5 @@ obj =
 #     1: before  o=3
 #     1: after   o=3
 #     1: leave   return=3
-#   3: after obj=<object>
+#   3: after obj=<object> id()=1 id()=2 id()=3
 
