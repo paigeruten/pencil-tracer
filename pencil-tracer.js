@@ -93,7 +93,7 @@
     };
 
     CoffeeScriptInstrumenter.prototype.createInstrumentedNode = function(eventType, options) {
-      var eventObj, extra, f, functionCalls, instrumentedNode, location, locationObj, name, ref, ref1, ref2, vars;
+      var eventObj, extra, f, functionCalls, instrumentedNode, location, locationObj, name, ref, ref1, ref2, soakify, vars;
       if (options == null) {
         options = {};
       }
@@ -111,6 +111,13 @@
       locationObj += " first_column: " + (location.first_column + 1) + ",";
       locationObj += " last_line: " + (location.last_line + 1) + ",";
       locationObj += " last_column: " + (location.last_column + 1) + " }";
+      soakify = function(name) {
+        if (name.indexOf(".") === -1) {
+          return "(if typeof " + name + " is 'undefined' then undefined else " + name + ")";
+        } else {
+          return name.replace(/\./g, "?.");
+        }
+      };
       extra = (function() {
         switch (eventType) {
           case "before":
@@ -120,7 +127,7 @@
               results = [];
               for (j = 0, len = vars.length; j < len; j++) {
                 name = vars[j];
-                results.push("{name: '" + name + "', value: (if typeof " + name + " is 'undefined' then undefined else " + name + ")}");
+                results.push("{name: '" + name + "', value: " + (soakify(name)) + "}");
               }
               return results;
             })()) + "]";
@@ -402,7 +409,7 @@
     };
 
     CoffeeScriptInstrumenter.prototype.instrumentTree = function(node, parent, inClass, returnOrThrowVar) {
-      var after, afterNode, before, beforeNode, block, caseClause, childIndex, children, expression, i, j, k, lastChild, len, len1, location, objValue, parensBlock, prop, recursed, ref, ref1, ref2, returnValue, temp, thrownValue, tryNode, vars;
+      var after, afterNode, before, beforeNode, block, caseClause, childIndex, children, expression, getVars, i, j, k, lastChild, len, len1, location, objValue, parensBlock, prop, recursed, ref, ref1, ref2, returnValue, temp, thrownValue, tryNode, vars;
       if (parent == null) {
         parent = null;
       }
@@ -498,6 +505,15 @@
         if (node.step) {
           node.step = this.createInstrumentedExpr(node.step);
         }
+        getVars = (function(_this) {
+          return function(n) {
+            if (n instanceof _this.nodeTypes.Literal) {
+              return [n.value];
+            } else {
+              return _this.findVariables(n);
+            }
+          };
+        })(this);
         if (node.name && node.index) {
           if (node.object) {
             location = {
@@ -514,13 +530,13 @@
               last_column: node.name.locationData.last_column
             };
           }
-          vars = [node.name.value, node.index.value];
+          vars = getVars(node.name).concat(getVars(node.index));
         } else if (node.name) {
           location = node.name.locationData;
-          vars = [node.name.value];
+          vars = getVars(node.name);
         } else if (node.index) {
           location = node.index.locationData;
-          vars = [node.index.value];
+          vars = getVars(node.index);
         } else {
           location = node.locationData;
           vars = [];
@@ -571,13 +587,18 @@
         node.body.expressions.unshift(before, after);
       } else if (node instanceof this.nodeTypes.Try) {
         if (node.recovery && node.errorVariable) {
+          if (node.errorVariable instanceof this.nodeTypes.Literal) {
+            vars = [node.errorVariable.value];
+          } else {
+            vars = this.findVariables(node.errorVariable);
+          }
           before = this.createInstrumentedNode("before", {
             node: node.errorVariable,
-            vars: [node.errorVariable.value]
+            vars: vars
           });
           after = this.createInstrumentedNode("after", {
             node: node.errorVariable,
-            vars: [node.errorVariable.value],
+            vars: vars,
             functionCalls: []
           });
           node.recovery.expressions.unshift(before, after);

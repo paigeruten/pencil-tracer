@@ -98,10 +98,16 @@ class CoffeeScriptInstrumenter
     locationObj += " last_line: #{location.last_line + 1},"
     locationObj += " last_column: #{location.last_column + 1} }"
 
+    soakify = (name) ->
+      if name.indexOf(".") is -1
+        "(if typeof #{name} is 'undefined' then undefined else #{name})"
+      else
+        name.replace /\./g, "?."
+
     extra =
       switch eventType
         when "before", "after"
-          "vars: [" + ("{name: '#{name}', value: (if typeof #{name} is 'undefined' then undefined else #{name})}" for name in vars) + "]"
+          "vars: [" + ("{name: '#{name}', value: #{soakify(name)}}" for name in vars) + "]"
         when "enter"
           "vars: [" + ("{name: '#{name}', value: #{name}}" for name in vars) + "]"
         when "leave"
@@ -388,6 +394,12 @@ class CoffeeScriptInstrumenter
       node.guard = @createInstrumentedExpr(node.guard) if node.guard
       node.step = @createInstrumentedExpr(node.step) if node.step
 
+      getVars = (n) =>
+        if n instanceof @nodeTypes.Literal
+          [n.value]
+        else
+          @findVariables(n)
+
       if node.name and node.index
         if node.object
           location =
@@ -401,13 +413,13 @@ class CoffeeScriptInstrumenter
             first_column: node.index.locationData.first_column
             last_line: node.name.locationData.last_line
             last_column: node.name.locationData.last_column
-        vars = [node.name.value, node.index.value]
+        vars = getVars(node.name).concat(getVars(node.index))
       else if node.name
         location = node.name.locationData
-        vars = [node.name.value]
+        vars = getVars(node.name)
       else if node.index
         location = node.index.locationData
-        vars = [node.index.value]
+        vars = getVars(node.index)
       else
         location = node.locationData
         vars = []
@@ -444,8 +456,13 @@ class CoffeeScriptInstrumenter
       node.body.expressions.unshift(before, after)
     else if node instanceof @nodeTypes.Try
       if node.recovery and node.errorVariable
-        before = @createInstrumentedNode("before", node: node.errorVariable, vars: [node.errorVariable.value])
-        after = @createInstrumentedNode("after", node: node.errorVariable, vars: [node.errorVariable.value], functionCalls: [])
+        if node.errorVariable instanceof @nodeTypes.Literal
+          vars = [node.errorVariable.value]
+        else
+          vars = @findVariables(node.errorVariable)
+
+        before = @createInstrumentedNode("before", node: node.errorVariable, vars: vars)
+        after = @createInstrumentedNode("after", node: node.errorVariable, vars: vars, functionCalls: [])
 
         node.recovery.expressions.unshift(before, after)
     else if node instanceof @nodeTypes.Code
