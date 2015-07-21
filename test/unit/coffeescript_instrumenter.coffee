@@ -24,8 +24,8 @@ describe 'CoffeeScriptInstrumenter', ->
       js = pencilTracer.instrumentCoffee('', 'x = 3', coffeeScript)
       jsBare = pencilTracer.instrumentCoffee('', 'x = 3', coffeeScript, bare: true)
 
-      js.should.match /function/
-      jsBare.should.not.match /function/
+      js.should.match /function\(\)/
+      jsBare.should.not.match /function\(\)/
 
     it 'should listen to the "ast" option', ->
       ast = pencilTracer.instrumentCoffee('', 'x = 3', coffeeScript, ast: true)

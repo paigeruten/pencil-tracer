@@ -89,6 +89,8 @@ class CoffeeScriptInstrumenter
     location = options.location ? options.node.locationData
     if eventType isnt "leave"
       vars = options.vars ? (if eventType is "enter" then @findArguments(options.node) else @findVariables(options.node))
+    if eventType is "after"
+      functionCalls = options.functionCalls ? @findFunctionCalls(options.node)
 
     # Give the line and column numbers as 1-indexed values, instead of 0-indexed.
     locationObj = "{ first_line: #{location.first_line + 1},"
@@ -105,6 +107,9 @@ class CoffeeScriptInstrumenter
         when "leave"
           "returnOrThrow: #{options.returnOrThrowVar}"
 
+    if eventType is "after"
+      extra += ", functionCalls: [" + ("{name: '#{f.name}', value: #{f.tempVar}}" for f in functionCalls) + "]"
+
     eventObj = "{ location: #{locationObj}, type: '#{eventType}', #{extra} }"
 
     # Create the node from a string of CoffeeScript.
@@ -117,16 +122,18 @@ class CoffeeScriptInstrumenter
   createInstrumentedExpr: (originalExpr) ->
     tempVar = @temporaryVariable "temp"
 
-    assignNode = @coffee.nodes("#{tempVar} = 0").expressions[0]
-    assignNode.value = originalExpr
-
     parensBlock = @coffee.nodes("(0)").expressions[0]
     parensBlock.base.body.expressions = []
     parensBlock.base.body.expressions[0] = @createInstrumentedNode("before", node: originalExpr)
-    parensBlock.base.body.expressions[1] = assignNode
+    parensBlock.base.body.expressions[1] = @createAssignNode(tempVar, originalExpr)
     parensBlock.base.body.expressions[2] = @createInstrumentedNode("after", node: originalExpr)
     parensBlock.base.body.expressions[3] = @coffee.nodes(tempVar).expressions[0]
     parensBlock
+
+  createAssignNode: (varName, valueNode) ->
+    assignNode = @coffee.nodes("#{varName} = 0").expressions[0]
+    assignNode.value = valueNode
+    assignNode
 
   findVariables: (node, parent=null, vars=[]) ->
     if node instanceof @nodeTypes.Value and node.base instanceof @nodeTypes.Literal and node.base.isAssignable()
@@ -178,26 +185,34 @@ class CoffeeScriptInstrumenter
           args.push.apply(args, @findVariables(name))
     args
 
-  findFunctionCalls: (node, parent, vars=[]) ->
-    if node instanceof @nodeTypes.Call
-      # Get the function name, e.g. get "func" for the expression "a.func()"
-      name = null
-      if node.variable.properties.length > 0
-        lastProp = node.variable.properties[node.variable.properties.length - 1]
-        if lastProp instanceof @nodeTypes.Access
-          name = lastProp.name.value
-      else if node.variable.base instanceof @nodeTypes.Literal
-        name = node.variable.base.value
+  findFunctionCalls: (node, parent=null, grandparent=null, vars=[]) ->
+    if node instanceof @nodeTypes.Call and not (grandparent instanceof @nodeTypes.Op and grandparent.operator is "new")
+      # Check for soaks. TODO: support "soaked" function calls.
+      soak = node.soak
+      if node.variable instanceof @nodeTypes.Value
+        for prop in node.variable.properties
+          soak ||= prop.soak
 
-      node.pencilTracerReturnVar = @temporaryVariable("returnVar")
-      vars.push {name: name, tempVar: node.pencilTracerReturnVar}
+      unless soak
+        # Get the function name, e.g. get "func" for the expression "a.func()"
+        name = "<anonymous>"
+        if node.variable instanceof @nodeTypes.Value
+          if node.variable.properties.length > 0
+            lastProp = node.variable.properties[node.variable.properties.length - 1]
+            if lastProp instanceof @nodeTypes.Access
+              name = lastProp.name.value
+          else if node.variable.base instanceof @nodeTypes.Literal
+            name = node.variable.base.value
+
+        node.pencilTracerReturnVar = @temporaryVariable("returnVar")
+        vars.push {name: name, tempVar: node.pencilTracerReturnVar}
 
     node.eachChild (child) =>
       skip = child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens
       skip ||= child instanceof @nodeTypes.Code
       skip ||= not @shouldInstrumentNode(child)
       if not skip
-        @findFunctionCalls(child, node, vars)
+        @findFunctionCalls(child, node, parent, vars)
 
     vars
 
@@ -225,6 +240,22 @@ class CoffeeScriptInstrumenter
     node not instanceof @nodeTypes.Class and
     node not instanceof @nodeTypes.Try and
     node not instanceof @nodeTypes.Await
+
+  mapChildrenArray: (children, func) ->
+    for child, index in children
+      if Array.isArray(child)
+        @mapChildrenArray(child, func)
+      else
+        children[index] = func(child)
+
+  mapChildren: (node, func) ->
+    childrenAttrs = node.children.slice()
+    childrenAttrs.push "icedContinuationBlock"
+    for attr in childrenAttrs when node[attr]
+      if Array.isArray(node[attr])
+        @mapChildrenArray(node[attr], func)
+      else
+        node[attr] = func(node[attr])
 
   compileAst: (ast, originalCode, compileOptions) ->
     # Pilfer the SourceMap class from CoffeeScript...
@@ -280,6 +311,7 @@ class CoffeeScriptInstrumenter
     inClass = node if node instanceof @nodeTypes.Class
     inClass = false if @nodeIsObj(node)
 
+    recursed = false
     if node instanceof @nodeTypes.Block and parent not instanceof @nodeTypes.Parens
       # Instrument children of Blocks with before events.
       children = node.expressions
@@ -314,18 +346,21 @@ class CoffeeScriptInstrumenter
           children.splice(childIndex + 1, 0, afterNode)
           childIndex++
 
+          if expression.pencilTracerReturnVar
+            children[childIndex - 1] = @createAssignNode(expression.pencilTracerReturnVar, expression)
+
           if expression instanceof @nodeTypes.Return
-            assignNode = @coffee.nodes("#{returnOrThrowVar}.value = 0").expressions[0]
-            assignNode.value = expression.expression || @coffee.nodes("undefined").expressions[0]
-            children[childIndex - 1] = assignNode
+            returnValue = expression.expression || @coffee.nodes("undefined").expressions[0]
+            returnValue = @createAssignNode(returnValue.pencilTracerReturnVar, returnValue) if returnValue.pencilTracerReturnVar
+            children[childIndex - 1] = @createAssignNode("#{returnOrThrowVar}.value", returnValue)
             children.splice(childIndex + 1, 0, @coffee.nodes("return #{returnOrThrowVar}.value").expressions[0])
             childIndex++
           else if expression instanceof @nodeTypes.Throw
             # Just using returnOrThrowVar as a temporary variable here. It and
             # returnOrThrowVar.type will be set in the catch block.
-            assignNode = @coffee.nodes("#{returnOrThrowVar}.value = 0").expressions[0]
-            assignNode.value = expression.expression
-            children[childIndex - 1] = assignNode
+            thrownValue = expression.expression
+            thrownValue = @createAssignNode(thrownValue.pencilTracerReturnVar, thrownValue) if thrownValue.pencilTracerReturnVar
+            children[childIndex - 1] = @createAssignNode("#{returnOrThrowVar}.value", thrownValue)
             children.splice(childIndex + 1, 0, @coffee.nodes("throw #{returnOrThrowVar}.value").expressions[0])
             childIndex++
           else if expression instanceof @nodeTypes.Literal and expression.value in ["break", "continue"]
@@ -335,9 +370,7 @@ class CoffeeScriptInstrumenter
           else if expression is lastChild and not expression.jumps() and expression not instanceof @nodeTypes.Await and not (inClass and @nodeIsClassProperty(expression, inClass.determineName())) and not (parent instanceof @nodeTypes.Try and parent.ensure is node)
             # Assign the original last expression of the block to a temporary
             # variable, and return that value at the end of the block.
-            assignNode = @coffee.nodes("#{returnOrThrowVar}.value = 0").expressions[0]
-            assignNode.value = expression
-            children[childIndex - 1] = assignNode
+            children[childIndex - 1] = @createAssignNode("#{returnOrThrowVar}.value", children[childIndex - 1])
             children.splice(childIndex + 1, 0, @coffee.nodes("#{returnOrThrowVar}.value").expressions[0])
             children[childIndex + 1].icedHasAutocbFlag = expression.icedHasAutocbFlag
             childIndex++
@@ -347,9 +380,11 @@ class CoffeeScriptInstrumenter
 
         childIndex++
 
+      recursed = true
     else if node instanceof @nodeTypes.For
       node.source = @createInstrumentedExpr(node.source) unless node.range
       node.guard = @createInstrumentedExpr(node.guard) if node.guard
+      node.step = @createInstrumentedExpr(node.step) if node.step
 
       if node.name and node.index
         if node.object
@@ -376,7 +411,7 @@ class CoffeeScriptInstrumenter
         vars = []
 
       before = @createInstrumentedNode("before", location: location, vars: vars)
-      after = @createInstrumentedNode("after", location: location, vars: vars)
+      after = @createInstrumentedNode("after", location: location, vars: vars, functionCalls: [])
 
       if node.guard
         parensBlock = @coffee.nodes("(0)").expressions[0]
@@ -384,51 +419,33 @@ class CoffeeScriptInstrumenter
         node.guard = parensBlock
       else
         node.body.expressions.unshift(before, after)
-
-      node.eachChild (child) =>
-        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.While
       node.condition = @createInstrumentedExpr(node.condition)
 
       if node.guard
         node.guard = @createInstrumentedExpr(node.guard)
-
-      node.eachChild (child) =>
-        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.Switch
       if node.subject
         node.subject = @createInstrumentedExpr(node.subject)
 
       for caseClause in node.cases
-        if caseClause[0] instanceof Array
+        if Array.isArray(caseClause[0])
           caseClause[0][0] = @createInstrumentedExpr(caseClause[0][0])
         else
           caseClause[0] = @createInstrumentedExpr(caseClause[0])
-
-      node.eachChild (child) =>
-        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.If
       node.condition = @createInstrumentedExpr(node.condition)
-
-      node.eachChild (child) =>
-        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.Class
       before = @createInstrumentedNode("before", node: node)
       after = @createInstrumentedNode("after", node: node)
 
       node.body.expressions.unshift(before, after)
-
-      node.eachChild (child) =>
-        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.Try
       if node.recovery and node.errorVariable
         before = @createInstrumentedNode("before", node: node.errorVariable, vars: [node.errorVariable.value])
-        after = @createInstrumentedNode("after", node: node.errorVariable, vars: [node.errorVariable.value])
+        after = @createInstrumentedNode("after", node: node.errorVariable, vars: [node.errorVariable.value], functionCalls: [])
 
         node.recovery.expressions.unshift(before, after)
-
-      node.eachChild (child) =>
-        @instrumentTree(child, node, inClass, returnOrThrowVar)
     else if node instanceof @nodeTypes.Code
       returnOrThrowVar = @temporaryVariable "returnOrThrow"
 
@@ -452,15 +469,18 @@ class CoffeeScriptInstrumenter
 
       node.body = block
 
-      # Proceed to instrument the original function body.
       @instrumentTree(tryNode.attempt, tryNode, inClass, returnOrThrowVar)
-    else
-      # Recursively instrument each child of this node.
-      node.eachChild (child) =>
-        @instrumentTree(child, node, inClass, returnOrThrowVar)
+      recursed = true
 
-      if node.icedContinuationBlock?
-        @instrumentTree(node.icedContinuationBlock, node, inClass, returnOrThrowVar)
+    # Recursively instrument each child of this node (unless we already did it
+    # for a special case above).
+    unless recursed
+      @mapChildren node, (child) =>
+        ret = child
+        if child.pencilTracerReturnVar
+          ret = @createAssignNode(child.pencilTracerReturnVar, child)
+        @instrumentTree(child, node, inClass, returnOrThrowVar)
+        ret
 
   # Instruments some CoffeeScript code, compiles to JavaScript, and returns the
   # JavaScript code.
