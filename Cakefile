@@ -47,9 +47,9 @@ task "instrument", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    console.log instrumentCoffee(options.file, code, coffee, bare: options.bare)
+    process.stdout.write instrumentCoffee(options.file, code, coffee, bare: options.bare)
   else if /\.js$/.test options.file
-    console.log instrumentJs(options.file, code)
+    process.stdout.write instrumentJs(options.file, code)
   else
     console.log "Error: file must end in .js or .coffee."
     process.exit 1
@@ -58,7 +58,7 @@ task "ast", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    console.log instrumentCoffee(options.file, code, coffee, ast: true, bare: options.bare).toString()
+    process.stdout.write instrumentCoffee(options.file, code, coffee, ast: true, bare: options.bare).toString()
   else
     console.log "Error: file must end in .coffee."
     process.exit 1
@@ -82,5 +82,5 @@ task "trace", (options) ->
   Contextify sandbox
   sandbox.run code
 
-  console.log util.inspect(sandbox.pencilTraceEvents, showHidden: false, depth: null)
+  process.stdout.write util.inspect(sandbox.pencilTraceEvents, showHidden: false, depth: null)
 
