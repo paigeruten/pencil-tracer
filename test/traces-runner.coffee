@@ -95,9 +95,9 @@ traceToString = (trace) ->
         when "before", "after", "enter" then event.vars
         when "leave"
           if event.returnOrThrow.type is "return"
-            { "return": event.returnOrThrow.value }
+            [{name: "return", value: event.returnOrThrow.value}]
           else
-            { "throw": event.returnOrThrow.value }
+            [{name: "throw", value: event.returnOrThrow.value}]
     varsStr = ("#{v.name}=#{abbrevValue(v.value, isActual)}" for v in vars).join(" ")
     if event.functionCalls
       varsStr += " " if varsStr.length > 0
@@ -206,7 +206,6 @@ testFile = (traceFile, language) ->
 anyFailures = false
 
 # Loop through files in test/traces/js directory.
-###
 console.log "\nRunning trace tests for JavaScript"
 traceFiles = fs.readdirSync path.join(tracesDir, "js")
 for traceFile in traceFiles
@@ -216,7 +215,6 @@ for traceFile in traceFiles
   # Perform all tests in the file.
   result = testFile traceFile, "js"
   anyFailures = true if not result
-###
 
 # Run all coffeescript tests with both CoffeeScript and Iced CoffeeScript.
 for coffee in [coffeeScript, icedCoffeeScript]
