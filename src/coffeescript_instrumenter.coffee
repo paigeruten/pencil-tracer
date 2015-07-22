@@ -1,3 +1,5 @@
+isArray = Array.isArray || (value) -> {}.toString.call(value) is '[object Array]'
+
 class CoffeeScriptInstrumenter
   # The constructor takes the CoffeeScript module to use to parse the code,
   # generate instrumented code, and compile the result to JavaScript. This lets
@@ -17,32 +19,32 @@ class CoffeeScriptInstrumenter
     @nodeTypes =
       'Block': @coffee.nodes("").constructor
       'Literal': @coffee.nodes("0").expressions[0].base.constructor
-      'Undefined': @coffee.nodes("undefined").expressions[0].base.constructor
-      'Null': @coffee.nodes("null").expressions[0].base.constructor
-      'Bool': @coffee.nodes("true").expressions[0].base.constructor
+      #'Undefined': @coffee.nodes("undefined").expressions[0].base.constructor
+      #'Null': @coffee.nodes("null").expressions[0].base.constructor
+      #'Bool': @coffee.nodes("true").expressions[0].base.constructor
       'Return': @coffee.nodes("return").expressions[0].constructor
       'Value': @coffee.nodes("0").expressions[0].constructor
       'Comment': @coffee.nodes("###\n###").expressions[0].constructor
       'Call': @coffee.nodes("f()").expressions[0].constructor
-      'Extends': @coffee.nodes("A extends B").expressions[0].constructor
+      #'Extends': @coffee.nodes("A extends B").expressions[0].constructor
       'Access': @coffee.nodes("a.b").expressions[0].properties[0].constructor
-      'Index': @coffee.nodes("a[0]").expressions[0].properties[0].constructor
-      'Range': @coffee.nodes("[0..1]").expressions[0].base.constructor
-      'Slice': @coffee.nodes("a[0..1]").expressions[0].properties[0].constructor
-      'Obj': @coffee.nodes("{}").expressions[0].base.constructor
-      'Arr': @coffee.nodes("[]").expressions[0].base.constructor
+      #'Index': @coffee.nodes("a[0]").expressions[0].properties[0].constructor
+      #'Range': @coffee.nodes("[0..1]").expressions[0].base.constructor
+      #'Slice': @coffee.nodes("a[0..1]").expressions[0].properties[0].constructor
+      #'Obj': @coffee.nodes("{}").expressions[0].base.constructor
+      #'Arr': @coffee.nodes("[]").expressions[0].base.constructor
       'Class': @coffee.nodes("class").expressions[0].constructor
       'Assign': @coffee.nodes("a=0").expressions[0].constructor
       'Code': @coffee.nodes("->").expressions[0].constructor
       'Param': @coffee.nodes("(a)->").expressions[0].params[0].constructor
-      'Splat': @coffee.nodes("[a...]").expressions[0].base.objects[0].constructor
-      'Expansion': @coffee.nodes("[...]").expressions[0].base.objects[0].constructor
+      #'Splat': @coffee.nodes("[a...]").expressions[0].base.objects[0].constructor
+      #'Expansion': @coffee.nodes("[...]").expressions[0].base.objects[0].constructor
       'While': @coffee.nodes("0 while true").expressions[0].constructor
       'Op': @coffee.nodes("1+1").expressions[0].constructor
-      'In': @coffee.nodes("0 in []").expressions[0].constructor
+      #'In': @coffee.nodes("0 in []").expressions[0].constructor
       'Try': @coffee.nodes("try").expressions[0].constructor
       'Throw': @coffee.nodes("throw 0").expressions[0].constructor
-      'Existence': @coffee.nodes("a?").expressions[0].constructor
+      #'Existence': @coffee.nodes("a?").expressions[0].constructor
       'Parens': @coffee.nodes("(0)").expressions[0].base.constructor
       'For': @coffee.nodes("0 for a in []").expressions[0].constructor
       'Switch': @coffee.nodes("switch a\n  when 0 then 0").expressions[0].constructor
@@ -251,7 +253,7 @@ class CoffeeScriptInstrumenter
 
   mapChildrenArray: (children, func) ->
     for child, index in children
-      if Array.isArray(child)
+      if isArray(child)
         @mapChildrenArray(child, func)
       else
         children[index] = func(child)
@@ -260,7 +262,7 @@ class CoffeeScriptInstrumenter
     childrenAttrs = node.children.slice()
     childrenAttrs.push "icedContinuationBlock"
     for attr in childrenAttrs when node[attr]
-      if Array.isArray(node[attr])
+      if isArray(node[attr])
         @mapChildrenArray(node[attr], func)
       else
         node[attr] = func(node[attr])
@@ -443,7 +445,7 @@ class CoffeeScriptInstrumenter
         node.subject = @createInstrumentedExpr(node.subject)
 
       for caseClause in node.cases
-        if Array.isArray(caseClause[0])
+        if isArray(caseClause[0])
           caseClause[0][0] = @createInstrumentedExpr(caseClause[0][0])
         else
           caseClause[0] = @createInstrumentedExpr(caseClause[0])
