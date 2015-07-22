@@ -59,8 +59,10 @@ task "ast", (options) ->
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
     process.stdout.write instrumentCoffee(options.file, code, coffee, ast: true, bare: options.bare).toString()
+  else if /\.js$/.test options.file
+    process.stdout.write util.inspect(instrumentJs(options.file, code, ast: true), showHidden: false, depth: null)
   else
-    console.log "Error: file must end in .coffee."
+    console.log "Error: file must end in .js or .coffee."
     process.exit 1
 
 task "trace", (options) ->
@@ -69,7 +71,7 @@ task "trace", (options) ->
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
     code = instrumentCoffee(options.file, code, coffee, bare: options.bare)
   else if /\.js$/.test options.file
-    code = instrumentCoffee(options.file, code)
+    code = instrumentJs(options.file, code)
   else
     console.log "Error: file must end in .js or .coffee."
     process.exit 1
