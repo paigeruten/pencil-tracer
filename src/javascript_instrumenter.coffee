@@ -6,7 +6,7 @@ FIND_VARIABLES_IN =
    "SequenceExpression", "UnaryExpression", "BinaryExpression",
    "AssignmentExpression", "UpdateExpression", "LogicalExpression",
    "ConditionalExpression", "CallExpression", "NewExpression",
-   "MemberExpression", "Identifier"]
+   "MemberExpression", "Identifier", "VariableDeclarator"]
 
 isArray = Array.isArray || (value) -> {}.toString.call(value) is '[object Array]'
 
