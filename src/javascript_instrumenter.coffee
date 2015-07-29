@@ -1,6 +1,13 @@
 acorn = require "acorn"
 escodegen = require "escodegen"
 
+FIND_VARIABLES_IN =
+  ["ThisExpression", "ArrayExpression", "ObjectExpression", "Property",
+   "SequenceExpression", "UnaryExpression", "BinaryExpression",
+   "AssignmentExpression", "UpdateExpression", "LogicalExpression",
+   "ConditionalExpression", "CallExpression", "NewExpression",
+   "MemberExpression", "Identifier"]
+
 isArray = Array.isArray || (value) -> {}.toString.call(value) is '[object Array]'
 
 class JavaScriptInstrumenter
@@ -87,14 +94,13 @@ class JavaScriptInstrumenter
     # TODO: handle consecutive memberexpressions, e.g. `a.b.c`
 
     for key of node
-      #continue if key is "parent"
       continue if node.type is "Property" and key is "key"
       continue if node.type in ["FunctionExpression", "FunctionDeclaration"] and key is "params"
       if isArray(node[key])
         for child in node[key]
-          @findVariables(child, vars)
-      else if node[key] and typeof node[key].type is "string" #and node[key].type not in STATEMENTS
-        @findVariables(node[key], vars)
+          @findVariables(child, vars) if child.type in FIND_VARIABLES_IN
+      else if node[key] and typeof node[key].type is "string"
+        @findVariables(node[key], vars) if node[key].type in FIND_VARIABLES_IN
 
     vars
 

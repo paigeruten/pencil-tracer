@@ -13,6 +13,7 @@
         * Function calls
         * Return values
         * Thrown errors
+    * Source mapping
     * Testing
         * Find a test suite for JavaScript
 
