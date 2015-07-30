@@ -148,6 +148,7 @@ class JavaScriptInstrumenter
     (parent.type is "ForStatement" and parent.test is node) or
     (parent.type is "ForStatement" and parent.update is node) or
     (parent.type is "ForStatement" and parent.init is node and node.type isnt "VariableDeclaration") or
+    (parent.type is "ForInStatement" and parent.right is node) or
     (parent.type is "SwitchCase" and parent.test is node) or
     (parent.type is "ThrowStatement")
 
@@ -179,6 +180,13 @@ class JavaScriptInstrumenter
           @createInstrumentedNode("before", node: varDecl)
           varDecl
           @createInstrumentedNode("after", node: varDecl)
+          child
+        ]
+      else if node.type is "ForInStatement" and child is node.body
+        type: "BlockStatement"
+        body: [
+          @createInstrumentedNode("before", node: node.left)
+          @createInstrumentedNode("after", node: node.left)
           child
         ]
       else if child.type is "ReturnStatement"
