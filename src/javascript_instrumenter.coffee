@@ -117,6 +117,7 @@ class JavaScriptInstrumenter
 
   shouldInstrumentWithBlock: (node, parent) ->
     node.type in ["EmptyStatement", "ExpressionStatement", "DebuggerStatement", "VariableDeclaration", "FunctionDeclaration"] and
+    # Exclude variable declarations in for statements
     not (parent.type is "ForStatement" and parent.init is node) and
     not (parent.type is "ForInStatement" and parent.left is node)
 
@@ -128,6 +129,7 @@ class JavaScriptInstrumenter
     (parent.type is "DoWhileStatement" and parent.test is node) or
     (parent.type is "ForStatement" and parent.test is node) or
     (parent.type is "ForStatement" and parent.update is node) or
+    (parent.type is "ForStatement" and parent.init is node and node.type isnt "VariableDeclaration") or
     (parent.type is "SwitchCase" and parent.test is node) or
     (parent.type is "ThrowStatement")
 
@@ -150,6 +152,17 @@ class JavaScriptInstrumenter
         body: [@createInstrumentedNode("before", node: child), child, @createInstrumentedNode("after", node: child)]
       else if @shouldInstrumentExpr(child, node)
         @createInstrumentedExpr(child)
+      else if child.type is "ForStatement" and child.init?.type is "VariableDeclaration"
+        varDecl = child.init
+        child.init = null
+
+        type: "BlockStatement"
+        body: [
+          @createInstrumentedNode("before", node: varDecl)
+          varDecl
+          @createInstrumentedNode("after", node: varDecl)
+          child
+        ]
       else if child.type is "ReturnStatement"
         if child.argument is null
           child.argument = @createUndefinedNode()

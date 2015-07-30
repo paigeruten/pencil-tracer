@@ -908,7 +908,7 @@
     };
 
     JavaScriptInstrumenter.prototype.shouldInstrumentExpr = function(node, parent) {
-      return (parent.type === "IfStatement" && parent.test === node) || (parent.type === "WithStatement" && parent.object === node) || (parent.type === "SwitchStatement" && parent.discriminant === node) || (parent.type === "WhileStatement" && parent.test === node) || (parent.type === "DoWhileStatement" && parent.test === node) || (parent.type === "ForStatement" && parent.test === node) || (parent.type === "ForStatement" && parent.update === node) || (parent.type === "SwitchCase" && parent.test === node) || (parent.type === "ThrowStatement");
+      return (parent.type === "IfStatement" && parent.test === node) || (parent.type === "WithStatement" && parent.object === node) || (parent.type === "SwitchStatement" && parent.discriminant === node) || (parent.type === "WhileStatement" && parent.test === node) || (parent.type === "DoWhileStatement" && parent.test === node) || (parent.type === "ForStatement" && parent.test === node) || (parent.type === "ForStatement" && parent.update === node) || (parent.type === "ForStatement" && parent.init === node && node.type !== "VariableDeclaration") || (parent.type === "SwitchCase" && parent.test === node) || (parent.type === "ThrowStatement");
     };
 
     JavaScriptInstrumenter.prototype.mapChildren = function(node, func) {
@@ -945,7 +945,7 @@
       }
       return this.mapChildren(node, (function(_this) {
         return function(child) {
-          var newBlock, ref1, ref2, tryStatement;
+          var newBlock, ref1, ref2, ref3, tryStatement, varDecl;
           _this.instrumentTree(child, node, returnOrThrowVar);
           if (_this.shouldInstrumentWithBlock(child, node)) {
             return {
@@ -960,6 +960,19 @@
             };
           } else if (_this.shouldInstrumentExpr(child, node)) {
             return _this.createInstrumentedExpr(child);
+          } else if (child.type === "ForStatement" && ((ref1 = child.init) != null ? ref1.type : void 0) === "VariableDeclaration") {
+            varDecl = child.init;
+            child.init = null;
+            return {
+              type: "BlockStatement",
+              body: [
+                _this.createInstrumentedNode("before", {
+                  node: varDecl
+                }), varDecl, _this.createInstrumentedNode("after", {
+                  node: varDecl
+                }), child
+              ]
+            };
           } else if (child.type === "ReturnStatement") {
             if (child.argument === null) {
               child.argument = _this.createUndefinedNode();
@@ -974,7 +987,7 @@
                 }), _this.createReturnNode(returnOrThrowVar + ".value")
               ]
             };
-          } else if ((ref1 = child.type) === "BreakStatement" || ref1 === "ContinueStatement") {
+          } else if ((ref2 = child.type) === "BreakStatement" || ref2 === "ContinueStatement") {
             return {
               type: "BlockStatement",
               body: [
@@ -987,7 +1000,7 @@
                 }), child
               ]
             };
-          } else if (((ref2 = node.type) === "FunctionDeclaration" || ref2 === "FunctionExpression") && node.body === child) {
+          } else if (((ref3 = node.type) === "FunctionDeclaration" || ref3 === "FunctionExpression") && node.body === child) {
             newBlock = acorn.parse("{\n  var " + returnOrThrowVar + " = { type: 'return', value: void 0 };\n  try {}\n  catch (" + _this.caughtErrorVar + ") {\n    " + returnOrThrowVar + ".type = 'throw';\n    " + returnOrThrowVar + ".value = " + _this.caughtErrorVar + ";\n    throw " + _this.caughtErrorVar + ";\n  } finally {}\n}").body[0];
             tryStatement = newBlock.body[1];
             tryStatement.block = child;
