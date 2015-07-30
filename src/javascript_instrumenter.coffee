@@ -161,6 +161,9 @@ class JavaScriptInstrumenter
           @createInstrumentedNode("after", node: child)
           @createReturnNode(returnOrThrowVar + ".value")
         ]
+      else if child.type in ["BreakStatement", "ContinueStatement"]
+        type: "BlockStatement"
+        body: [@createInstrumentedNode("before", node: child, vars: []), @createInstrumentedNode("after", node: child, vars: []), child]
       else if node.type in ["FunctionDeclaration", "FunctionExpression"] and node.body is child
         newBlock = acorn.parse("""
           {
