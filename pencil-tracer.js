@@ -748,11 +748,23 @@
       locationObj += " last_line: " + loc.end.line + ",";
       locationObj += " last_column: " + (loc.end.column + 1) + " }";
       soakify = function(name) {
-        if (name.indexOf(".") === -1) {
-          return "(typeof " + name + " === 'undefined' ? void 0 : " + name + ")";
-        } else {
-          throw "todo";
+        var closeParens, expr, i, j, parts, ref3, soakified;
+        soakified = "";
+        closeParens = "";
+        parts = name.split(".");
+        for (i = j = 0, ref3 = parts.length; 0 <= ref3 ? j < ref3 : j > ref3; i = 0 <= ref3 ? ++j : --j) {
+          expr = parts.slice(0, +i + 1 || 9e9).join(".");
+          if (i === 0) {
+            expr = "(typeof " + expr + " === 'undefined' ? void 0 : " + expr + ")";
+          }
+          if (i === parts.length - 1) {
+            soakified += expr;
+          } else {
+            soakified += "((typeof " + expr + " === 'undefined' || " + expr + " === null) ? " + expr + " : ";
+            closeParens += ")";
+          }
         }
+        return soakified + closeParens;
       };
       extra = (function() {
         switch (eventType) {
@@ -845,7 +857,7 @@
     };
 
     JavaScriptInstrumenter.prototype.findVariables = function(node, vars) {
-      var child, j, key, len, ref, ref1, ref2, ref3;
+      var child, curNode, j, key, len, parts, ref, ref1, ref2, ref3;
       if (vars == null) {
         vars = [];
       }
@@ -853,12 +865,29 @@
         if (vars.indexOf(node.name) === -1) {
           vars.push(node.name);
         }
+      } else if (node.type === "MemberExpression" && !node.computed) {
+        curNode = node;
+        parts = [];
+        while (curNode.type === "MemberExpression" && !curNode.computed) {
+          parts.unshift(curNode.property.name);
+          curNode = curNode.object;
+        }
+        if (curNode.type === "Identifier") {
+          parts.unshift(curNode.name);
+          vars.push(parts.join("."));
+        }
       }
       for (key in node) {
         if (node.type === "Property" && key === "key") {
           continue;
         }
         if (((ref = node.type) === "FunctionExpression" || ref === "FunctionDeclaration") && key === "params") {
+          continue;
+        }
+        if (node.type === "MemberExpression" && key === "property" && !node.computed) {
+          continue;
+        }
+        if (node.type === "MemberExpression" && key === "object" && node[key].type === "Identifier" && !node.computed) {
           continue;
         }
         if (isArray(node[key])) {

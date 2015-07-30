@@ -41,11 +41,20 @@ class JavaScriptInstrumenter
     locationObj += " last_column: #{loc.end.column + 1} }"
 
     soakify = (name) ->
-      if name.indexOf(".") is -1
-        "(typeof #{name} === 'undefined' ? void 0 : #{name})"
-      else
-        # TODO: handle variables like a.b.c, when a or a.b might not be defined.
-        throw "todo"
+      soakified = ""
+      closeParens = ""
+      parts = name.split "."
+      for i in [0...parts.length]
+        expr = parts[0..i].join(".")
+        if i is 0
+          expr = "(typeof #{expr} === 'undefined' ? void 0 : #{expr})"
+
+        if i is parts.length - 1
+          soakified += expr
+        else
+          soakified += "((typeof #{expr} === 'undefined' || #{expr} === null) ? #{expr} : "
+          closeParens += ")"
+      soakified + closeParens
 
     extra =
       switch eventType
@@ -94,12 +103,21 @@ class JavaScriptInstrumenter
     if node.type is "Identifier"
       if vars.indexOf(node.name) is -1
         vars.push node.name
-
-    # TODO: handle consecutive memberexpressions, e.g. `a.b.c`
+    else if node.type is "MemberExpression" and not node.computed
+      curNode = node
+      parts = []
+      while curNode.type is "MemberExpression" and not curNode.computed
+        parts.unshift curNode.property.name
+        curNode = curNode.object
+      if curNode.type is "Identifier"
+        parts.unshift curNode.name
+        vars.push parts.join(".")
 
     for key of node
       continue if node.type is "Property" and key is "key"
       continue if node.type in ["FunctionExpression", "FunctionDeclaration"] and key is "params"
+      continue if node.type is "MemberExpression" and key is "property" and not node.computed
+      continue if node.type is "MemberExpression" and key is "object" and node[key].type is "Identifier" and not node.computed
       if isArray(node[key])
         for child in node[key]
           @findVariables(child, vars) if child.type in FIND_VARIABLES_IN

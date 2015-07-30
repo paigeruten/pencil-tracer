@@ -6,10 +6,8 @@
     * Track soaked functions (e.g. `func?()`, `obj?.a().b()`)
 * JavaScript
     * Tracing
-        * `'after'` events
         * Consistent tracing (i.e. pass the trace tests)
     * Variable Tracking
-        * Track properties (e.g. `window.location`)
         * Function calls
     * Source mapping
     * Testing
