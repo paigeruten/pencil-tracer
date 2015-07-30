@@ -78,13 +78,17 @@ class JavaScriptInstrumenter
     sequenceExpr.expressions.push { type: "Identifier", name: tempVar }
     sequenceExpr
 
-  createAssignNode: (varName, expr) ->
-    type: "AssignmentExpression"
-    operator: "="
-    left:
-      type: "Identifier"
-      name: varName
-    right: expr
+  createAssignNode: (varName, expr, asStatement=false) ->
+    node = acorn.parse("#{varName} = 0;").body[0]
+    node.expression.right = expr
+
+    if asStatement then node else node.expression
+
+  createReturnNode: (varName) ->
+    acorn.parse("return #{varName};", allowReturnOutsideFunction: true).body[0]
+
+  createUndefinedNode: ->
+    acorn.parse("void 0").body[0].expression
 
   findVariables: (node, vars=[]) ->
     if node.type is "Identifier"
@@ -124,7 +128,8 @@ class JavaScriptInstrumenter
     (parent.type is "DoWhileStatement" and parent.test is node) or
     (parent.type is "ForStatement" and parent.test is node) or
     (parent.type is "ForStatement" and parent.update is node) or
-    (parent.type is "SwitchCase" and parent.test is node)
+    (parent.type is "SwitchCase" and parent.test is node) or
+    (parent.type is "ThrowStatement")
 
   mapChildren: (node, func) ->
     for key of node
@@ -145,6 +150,17 @@ class JavaScriptInstrumenter
         body: [@createInstrumentedNode("before", node: child), child, @createInstrumentedNode("after", node: child)]
       else if @shouldInstrumentExpr(child, node)
         @createInstrumentedExpr(child)
+      else if child.type is "ReturnStatement"
+        if child.argument is null
+          child.argument = @createUndefinedNode()
+
+        type: "BlockStatement"
+        body: [
+          @createInstrumentedNode("before", node: child)
+          @createAssignNode(returnOrThrowVar + ".value", child.argument, true)
+          @createInstrumentedNode("after", node: child)
+          @createReturnNode(returnOrThrowVar + ".value")
+        ]
       else if node.type in ["FunctionDeclaration", "FunctionExpression"] and node.body is child
         newBlock = acorn.parse("""
           {
