@@ -137,7 +137,9 @@ class JavaScriptInstrumenter
     node.type in ["EmptyStatement", "ExpressionStatement", "DebuggerStatement", "VariableDeclaration", "FunctionDeclaration"] and
     # Exclude variable declarations in for statements
     not (parent.type is "ForStatement" and parent.init is node) and
-    not (parent.type is "ForInStatement" and parent.left is node)
+    not (parent.type is "ForInStatement" and parent.left is node) and
+    # Exclude single-statement bodies of for-in statements, as those are a special case.
+    not (parent.type is "ForInStatement" and parent.body is node)
 
   shouldInstrumentExpr: (node, parent) ->
     (parent.type is "IfStatement" and parent.test is node) or
@@ -183,6 +185,11 @@ class JavaScriptInstrumenter
           child
         ]
       else if node.type is "ForInStatement" and child is node.body
+        if child.type isnt "BlockStatement"
+          child =
+            type: "BlockStatement"
+            body: [@createInstrumentedNode("before", node: child), child, @createInstrumentedNode("after", node: child)]
+
         type: "BlockStatement"
         body: [
           @createInstrumentedNode("before", node: node.left)

@@ -40,8 +40,6 @@ for (var k in {a: 1})
 //   13: after   x=5
 //   14: before
 //   14: after
-//   16: before
-//   16: after
 //   17: before  x=5
 //   17: after   x=5
 //   19: before
@@ -51,6 +49,8 @@ for (var k in {a: 1})
 //   17: before  x=6
 //   17: after   x=6
 //   21: before
+//   21: after
+//   21: before  k='a'
 //   21: after   k='a'
 //   22: before  x=6
 //   22: after   x=7

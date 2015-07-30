@@ -5,8 +5,6 @@
     * Track functions called with the `new` operator (we currently track `new Array()` (a `Call`), but not `new Array().length` (an `Op`))
     * Track soaked functions (e.g. `func?()`, `obj?.a().b()`)
 * JavaScript
-    * Tracing
-        * Consistent tracing (i.e. pass the trace tests)
     * Variable Tracking
         * Function calls
     * Source mapping
