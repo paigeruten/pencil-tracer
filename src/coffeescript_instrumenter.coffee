@@ -241,7 +241,7 @@ class CoffeeScriptInstrumenter
   shouldInstrumentNode: (node) ->
     not node.pencilTracerInstrumented and
     node not instanceof @nodeTypes.IcedRuntime and
-    node not instanceof @nodeTypes.IcedTailCall and
+    (node not instanceof @nodeTypes.IcedTailCall or node.value instanceof @nodeTypes.Value) and
     node not instanceof @nodeTypes.Comment and
     node not instanceof @nodeTypes.For and
     node not instanceof @nodeTypes.While and

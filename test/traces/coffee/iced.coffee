@@ -20,6 +20,6 @@ if true
 #     2: after
 #     1: leave   return=3
 #   7: after   f()=/
-##  8: before  x=3
-##  8: after   x=3
+#   8: before  x=3
+#   8: after   x=3
 
