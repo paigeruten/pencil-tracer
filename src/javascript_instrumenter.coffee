@@ -100,9 +100,10 @@ class JavaScriptInstrumenter
     acorn.parse("void 0").body[0].expression
 
   findVariables: (node, vars=[]) ->
-    if node.type is "Identifier"
-      if vars.indexOf(node.name) is -1
-        vars.push node.name
+    if node.type in ["Identifier", "ThisExpression"]
+      name = if node.type is "ThisExpression" then "this" else node.name
+      if vars.indexOf(name) is -1
+        vars.push name
     else if node.type is "MemberExpression" and not node.computed
       curNode = node
       parts = []
@@ -112,12 +113,15 @@ class JavaScriptInstrumenter
       if curNode.type is "Identifier"
         parts.unshift curNode.name
         vars.push parts.join(".")
+      else if curNode.type is "ThisExpression"
+        parts.unshift "this"
+        vars.push parts.join(".")
 
     for key of node
       continue if node.type is "Property" and key is "key"
       continue if node.type in ["FunctionExpression", "FunctionDeclaration"] and key is "params"
       continue if node.type is "MemberExpression" and key is "property" and not node.computed
-      continue if node.type is "MemberExpression" and key is "object" and node[key].type is "Identifier" and not node.computed
+      continue if node.type is "MemberExpression" and key is "object" and node[key].type in ["Identifier", "ThisExpression"] and not node.computed
       if isArray(node[key])
         for child in node[key]
           @findVariables(child, vars) if child.type in FIND_VARIABLES_IN

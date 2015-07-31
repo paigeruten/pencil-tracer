@@ -857,13 +857,14 @@
     };
 
     JavaScriptInstrumenter.prototype.findVariables = function(node, vars) {
-      var child, curNode, j, key, len, parts, ref, ref1, ref2, ref3;
+      var child, curNode, j, key, len, name, parts, ref, ref1, ref2, ref3, ref4, ref5;
       if (vars == null) {
         vars = [];
       }
-      if (node.type === "Identifier") {
-        if (vars.indexOf(node.name) === -1) {
-          vars.push(node.name);
+      if ((ref = node.type) === "Identifier" || ref === "ThisExpression") {
+        name = node.type === "ThisExpression" ? "this" : node.name;
+        if (vars.indexOf(name) === -1) {
+          vars.push(name);
         }
       } else if (node.type === "MemberExpression" && !node.computed) {
         curNode = node;
@@ -875,31 +876,34 @@
         if (curNode.type === "Identifier") {
           parts.unshift(curNode.name);
           vars.push(parts.join("."));
+        } else if (curNode.type === "ThisExpression") {
+          parts.unshift("this");
+          vars.push(parts.join("."));
         }
       }
       for (key in node) {
         if (node.type === "Property" && key === "key") {
           continue;
         }
-        if (((ref = node.type) === "FunctionExpression" || ref === "FunctionDeclaration") && key === "params") {
+        if (((ref1 = node.type) === "FunctionExpression" || ref1 === "FunctionDeclaration") && key === "params") {
           continue;
         }
         if (node.type === "MemberExpression" && key === "property" && !node.computed) {
           continue;
         }
-        if (node.type === "MemberExpression" && key === "object" && node[key].type === "Identifier" && !node.computed) {
+        if (node.type === "MemberExpression" && key === "object" && ((ref2 = node[key].type) === "Identifier" || ref2 === "ThisExpression") && !node.computed) {
           continue;
         }
         if (isArray(node[key])) {
-          ref1 = node[key];
-          for (j = 0, len = ref1.length; j < len; j++) {
-            child = ref1[j];
-            if (ref2 = child.type, indexOf.call(FIND_VARIABLES_IN, ref2) >= 0) {
+          ref3 = node[key];
+          for (j = 0, len = ref3.length; j < len; j++) {
+            child = ref3[j];
+            if (ref4 = child.type, indexOf.call(FIND_VARIABLES_IN, ref4) >= 0) {
               this.findVariables(child, vars);
             }
           }
         } else if (node[key] && typeof node[key].type === "string") {
-          if (ref3 = node[key].type, indexOf.call(FIND_VARIABLES_IN, ref3) >= 0) {
+          if (ref5 = node[key].type, indexOf.call(FIND_VARIABLES_IN, ref5) >= 0) {
             this.findVariables(node[key], vars);
           }
         }
