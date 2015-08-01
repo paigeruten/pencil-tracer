@@ -14,16 +14,16 @@ var y = squareDecl(3);
 //   1:  after   squareExpr=<function>
 //   5:  before  squareDecl=<function>
 //   5:  after   squareDecl=<function>
-//   9:  before  x=/ squareExpr=<function>
+//   9:  before  x=/
 //     1: enter   x=3
 //     2: before  x=3
 //     2: after   x=3
 //     1: leave   return=9
-//   9:  after   x=9 squareExpr=<function>
-//   10: before  y=/ squareDecl=<function>
+//   9:  after   x=9 squareExpr()=9
+//   10: before  y=/
 //     5: enter   x=3
 //     6: before  x=3
 //     6: after   x=3
 //     5: leave   return=9
-//   10: after   y=9 squareDecl=<function>
+//   10: after   y=9 squareDecl()=9
 

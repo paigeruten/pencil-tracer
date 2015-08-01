@@ -13,14 +13,14 @@ f(3);
 //   1: after   g=<function>
 //   5: before  f=/
 //   5: after   f=<function>
-//   9: before  f=<function>
+//   9: before
 //     5: enter   x=3
-//     6: before  x=3 g=<function>
+//     6: before  x=3
 //       1: enter   x=3
 //       2: before  x=3
 //       2: after   x=3
 //       1: leave   return=4
-//     6: after   x=3 g=<function>
+//     6: after   x=3 g()=4
 //     5: leave   return=4
-//   9: after   f=<function>
+//   9: after   f()=4
 

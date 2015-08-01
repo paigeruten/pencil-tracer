@@ -21,7 +21,7 @@ shape(5);
 // Trace:
 //   1:  before  shape=/
 //   1:  after   shape=<function>
-//   17: before  shape=<function>
+//   17: before
 //     1:  enter   sides=3
 //     2:  before  name=/
 //     2:  after   name=/
@@ -36,8 +36,8 @@ shape(5);
 //     14: before  name='triangle'
 //     14: after   name='triangle'
 //     1:  leave   return='triangle'
-//   17: after   shape=<function>
-//   18: before  shape=<function>
+//   17: after   shape()='triangle'
+//   18: before
 //     1:  enter   sides=4
 //     2:  before  name=/
 //     2:  after   name=/
@@ -54,8 +54,8 @@ shape(5);
 //     14: before  name='rectangle'
 //     14: after   name='rectangle'
 //     1:  leave   return='rectangle'
-//   18: after   shape=<function>
-//   19: before  shape=<function>
+//   18: after   shape()='rectangle'
+//   19: before
 //     1:  enter   sides=5
 //     2:  before  name=/
 //     2:  after   name=/
@@ -72,5 +72,5 @@ shape(5);
 //     14: before  name='too complicated'
 //     14: after   name='too complicated'
 //     1:  leave   return='too complicated'
-//   19: after   shape=<function>
+//   19: after   shape()='too complicated'
 

@@ -77,8 +77,9 @@ class JavaScriptInstrumenter
     instrumentedNode.expression.pencilTracerInstrumented = true
     instrumentedNode
 
-  createInstrumentedExpr: (originalExpr) ->
-    tempVar = @temporaryVariable "temp", true
+  createInstrumentedExpr: (originalExpr, tempVar=null) ->
+    if tempVar is null
+      tempVar = @temporaryVariable "temp", true
 
     sequenceExpr = { type: "SequenceExpression", expressions: [] }
     sequenceExpr.expressions.push @createInstrumentedNode("before", node: originalExpr).expression
@@ -90,6 +91,7 @@ class JavaScriptInstrumenter
   createAssignNode: (varName, expr, asStatement=false) ->
     node = acorn.parse("#{varName} = 0;").body[0]
     node.expression.right = expr
+    node.expression.left.pencilTracerGenerated = true
 
     if asStatement then node else node.expression
 
@@ -99,7 +101,9 @@ class JavaScriptInstrumenter
   createUndefinedNode: ->
     acorn.parse("void 0").body[0].expression
 
-  findVariables: (node, vars=[]) ->
+  findVariables: (node, parent=null, vars=[]) ->
+    return [] if node.pencilTracerGenerated
+
     if node.type in ["Identifier", "ThisExpression"]
       name = if node.type is "ThisExpression" then "this" else node.name
       if vars.indexOf(name) is -1
@@ -110,32 +114,53 @@ class JavaScriptInstrumenter
       while curNode.type is "MemberExpression" and not curNode.computed
         parts.unshift curNode.property.name
         curNode = curNode.object
-      if curNode.type is "Identifier"
-        parts.unshift curNode.name
-        vars.push parts.join(".")
-      else if curNode.type is "ThisExpression"
-        parts.unshift "this"
-        vars.push parts.join(".")
+      if curNode.type in ["Identifier", "ThisExpression"]
+        ident = if curNode.type is "ThisExpression" then "this" else curNode.name
+        parts.unshift ident
+        parts.pop() if parent.type in ["CallExpression", "NewExpression"] and parent.callee is node
+        name = parts.join(".")
+        if vars.indexOf(name) is -1
+          vars.push name
 
     for key of node
       continue if node.type is "Property" and key is "key"
       continue if node.type in ["FunctionExpression", "FunctionDeclaration"] and key is "params"
       continue if node.type is "MemberExpression" and key is "property" and not node.computed
       continue if node.type is "MemberExpression" and key is "object" and node[key].type in ["Identifier", "ThisExpression"] and not node.computed
+      continue if node.type in ["CallExpression", "NewExpression"] and key is "callee" and node[key].type in ["ThisExpression", "Identifier"]
       if isArray(node[key])
         for child in node[key]
-          @findVariables(child, vars) if child.type in FIND_VARIABLES_IN
+          @findVariables(child, node, vars) if child.type in FIND_VARIABLES_IN
       else if node[key] and typeof node[key].type is "string"
-        @findVariables(node[key], vars) if node[key].type in FIND_VARIABLES_IN
+        @findVariables(node[key], node, vars) if node[key].type in FIND_VARIABLES_IN
 
     vars
 
   findArguments: (funcNode) ->
     (param.name for param in funcNode.params)
 
-  findFunctionCalls: (node, parent=null, grandparent=null, vars=[]) ->
-    # TODO. Finish @findVariables() first, this will be very similar.
-    []
+  findFunctionCalls: (node, vars=[]) ->
+    if node.pencilTracerReturnVar
+      name =
+        if node.callee.type is "ThisExpression"
+          "this"
+        else if node.callee.type is "Identifier"
+          node.callee.name
+        else if node.callee.type is "MemberExpression" and not node.callee.computed
+          node.callee.property.name
+        else
+          "<anonymous>"
+
+      vars.push {name: name, tempVar: node.pencilTracerReturnVar}
+
+    for key of node
+      if isArray(node[key])
+        for child in node[key]
+          @findFunctionCalls(child, vars) if child.type in FIND_VARIABLES_IN
+      else if node[key] and typeof node[key].type is "string"
+        @findFunctionCalls(node[key], vars) if node[key].type in FIND_VARIABLES_IN
+
+    vars
 
   shouldInstrumentWithBlock: (node, parent) ->
     node.type in ["EmptyStatement", "ExpressionStatement", "DebuggerStatement", "VariableDeclaration", "FunctionDeclaration"] and
@@ -170,13 +195,21 @@ class JavaScriptInstrumenter
     if node.type in ["FunctionDeclaration", "FunctionExpression"]
       returnOrThrowVar = @temporaryVariable "returnOrThrow"
 
+    if node.type in ["CallExpression", "NewExpression"]
+      node.pencilTracerReturnVar = @temporaryVariable("returnVar", true)
+
     @mapChildren node, (child) =>
       @instrumentTree(child, node, returnOrThrowVar)
       if @shouldInstrumentWithBlock(child, node)
         type: "BlockStatement"
         body: [@createInstrumentedNode("before", node: child), child, @createInstrumentedNode("after", node: child)]
       else if @shouldInstrumentExpr(child, node)
-        @createInstrumentedExpr(child)
+        if child.pencilTracerReturnVar
+          @createInstrumentedExpr(child, child.pencilTracerReturnVar)
+        else
+          @createInstrumentedExpr(child)
+      else if child.pencilTracerReturnVar
+        @createAssignNode(child.pencilTracerReturnVar, child)
       else if child.type is "ForStatement" and child.init?.type is "VariableDeclaration"
         varDecl = child.init
         child.init = null

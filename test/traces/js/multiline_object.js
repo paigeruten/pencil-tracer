@@ -9,7 +9,7 @@ var obj = {
 // Trace:
 //   1: before  id=/
 //   1: after   id=<function>
-//   3: before  obj=/ id=<function>
+//   3: before  obj=/
 //     1: enter   o=1
 //     1: before  o=1
 //     1: after   o=1
@@ -22,5 +22,5 @@ var obj = {
 //     1: before  o=3
 //     1: after   o=3
 //     1: leave   return=3
-//   3: after   obj=<object> id=<function>
+//   3: after   obj=<object> id()=1 id()=2 id()=3
 
