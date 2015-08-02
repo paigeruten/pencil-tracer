@@ -104,6 +104,7 @@ class JavaScriptInstrumenter
   findVariables: (node, parent=null, vars=[]) ->
     return [] if node.pencilTracerGenerated
 
+    foundEndOfMemberExpression = false
     if node.type in ["Identifier", "ThisExpression"]
       name = if node.type is "ThisExpression" then "this" else node.name
       if vars.indexOf(name) is -1
@@ -115,6 +116,7 @@ class JavaScriptInstrumenter
         parts.unshift curNode.property.name
         curNode = curNode.object
       if curNode.type in ["Identifier", "ThisExpression"]
+        foundEndOfMemberExpression = true
         ident = if curNode.type is "ThisExpression" then "this" else curNode.name
         parts.unshift ident
         parts.pop() if parent.type in ["CallExpression", "NewExpression"] and parent.callee is node
@@ -123,6 +125,7 @@ class JavaScriptInstrumenter
           vars.push name
 
     for key of node
+      continue if foundEndOfMemberExpression
       continue if node.type is "Property" and key is "key"
       continue if node.type in ["FunctionExpression", "FunctionDeclaration"] and key is "params"
       continue if node.type is "MemberExpression" and key is "property" and not node.computed
