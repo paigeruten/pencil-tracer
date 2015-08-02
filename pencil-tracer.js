@@ -890,7 +890,7 @@
           foundEndOfMemberExpression = true;
           ident = curNode.type === "ThisExpression" ? "this" : curNode.name;
           parts.unshift(ident);
-          if (((ref2 = parent.type) === "CallExpression" || ref2 === "NewExpression") && parent.callee === node) {
+          if (((ref2 = parent != null ? parent.type : void 0) === "CallExpression" || ref2 === "NewExpression") && parent.callee === node) {
             parts.pop();
           }
           name = parts.join(".");

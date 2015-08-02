@@ -119,7 +119,7 @@ class JavaScriptInstrumenter
         foundEndOfMemberExpression = true
         ident = if curNode.type is "ThisExpression" then "this" else curNode.name
         parts.unshift ident
-        parts.pop() if parent.type in ["CallExpression", "NewExpression"] and parent.callee is node
+        parts.pop() if parent?.type in ["CallExpression", "NewExpression"] and parent.callee is node
         name = parts.join(".")
         if vars.indexOf(name) is -1
           vars.push name
