@@ -25,6 +25,28 @@ class JavaScriptInstrumenter
         return curName
       index++
 
+  isFunctionDef: (node) ->
+    node?.type is "FunctionDeclaration" or
+    (node?.type is "VariableDeclaration" and
+     node.declarations.length is 1 and
+     node.declarations[0].init?.type is "FunctionExpression")
+
+  soakify: (name) ->
+    soakified = ""
+    closeParens = ""
+    parts = name.split "."
+    for i in [0...parts.length]
+      expr = parts[0..i].join(".")
+      if i is 0
+        expr = "(typeof #{expr} === 'undefined' ? void 0 : #{expr})"
+
+      if i is parts.length - 1
+        soakified += expr
+      else
+        soakified += "((typeof #{expr} === 'undefined' || #{expr} === null) ? #{expr} : "
+        closeParens += ")"
+    soakified + closeParens
+
   createInstrumentedNode: (eventType, options={}) ->
     loc = options.loc ? options.node.loc
 
@@ -40,26 +62,11 @@ class JavaScriptInstrumenter
     locationObj += " last_line: #{loc.end.line},"
     locationObj += " last_column: #{loc.end.column + 1} }"
 
-    soakify = (name) ->
-      soakified = ""
-      closeParens = ""
-      parts = name.split "."
-      for i in [0...parts.length]
-        expr = parts[0..i].join(".")
-        if i is 0
-          expr = "(typeof #{expr} === 'undefined' ? void 0 : #{expr})"
-
-        if i is parts.length - 1
-          soakified += expr
-        else
-          soakified += "((typeof #{expr} === 'undefined' || #{expr} === null) ? #{expr} : "
-          closeParens += ")"
-      soakified + closeParens
-
     extra =
       switch eventType
         when "before", "after"
-          "vars: [" + ("{name: '#{name}', value: #{soakify(name)}}" for name in vars) + "]"
+          funcDef = if @isFunctionDef(options.node) then ", functionDef: true" else ""
+          "vars: [" + ("{name: '#{name}', value: #{@soakify(name)} #{funcDef}}" for name in vars) + "]"
         when "enter"
           "vars: [" + ("{name: '#{name}', value: #{name}}" for name in vars) + "]"
         when "leave"

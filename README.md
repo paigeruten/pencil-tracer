@@ -69,7 +69,7 @@ Here is what the program looks like after being instrumented:
 ```javascript
 var _returnVar;
 
-pencilTrace({type: 'before', location: {first_line: 1, ...}, vars: [{name: 'square', value: square}]});
+pencilTrace({type: 'before', location: {first_line: 1, ...}, vars: [{name: 'square', value: square, functionDef: true}]});
 var square = function (x) {
   var _returnOrThrow = { type: 'return', value: undefined };
   pencilTrace({type: 'enter', location: {first_line: 1, ...}, vars: [{name: 'x', value: x}]});
@@ -86,7 +86,7 @@ var square = function (x) {
     pencilTrace({type: 'leave', location: {first_line: 1, ...}, returnOrThrow: _returnOrThrow});
   }
 };
-pencilTrace({type: 'after', location: {first_line: 1, ...}, vars: [{name: 'square', value: square}]});
+pencilTrace({type: 'after', location: {first_line: 1, ...}, vars: [{name: 'square', value: square, functionDef: true}]});
 
 pencilTrace({type: 'before', location: {first_line: 5, ...}, vars: [{name: 'y', value: y}]});
 var y = (_returnVar = square(3));
@@ -110,8 +110,8 @@ var pencilTrace = function (event) {
 This would produce the following trace of the program above:
 
 ```javascript
-[{type: 'before', location: {first_line: 1, ...}, vars: [{name: 'square', value: undefined}]},
- {type: 'after',  location: {first_line: 1, ...}, vars: [{name: 'square', value: <function>}]},
+[{type: 'before', location: {first_line: 1, ...}, vars: [{name: 'square', value: undefined, functionDef: true}]},
+ {type: 'after',  location: {first_line: 1, ...}, vars: [{name: 'square', value: <function>, functionDef: true}]},
  {type: 'before', location: {first_line: 5, ...}, vars: [{name: 'y', value: undefined}]},
  {type: 'enter',  location: {first_line: 1, ...}, vars: [{name: 'x', value: 3}]},
  {type: 'before', location: {first_line: 2, ...}, vars: [{name: 'x', value: 3}]},

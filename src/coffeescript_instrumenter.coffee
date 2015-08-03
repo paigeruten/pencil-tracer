@@ -82,6 +82,20 @@ class CoffeeScriptInstrumenter
     return list[i] while i-- when list[i] not instanceof @nodeTypes.Comment
     null
 
+  isFunctionDef: (node) ->
+    node instanceof @nodeTypes.Assign and
+    not node.context and
+    node.variable instanceof @nodeTypes.Value and
+    node.variable.base instanceof @nodeTypes.Literal and
+    node.variable.properties.length is 0 and
+    node.value instanceof @nodeTypes.Code
+
+  soakify: (name) ->
+    if name.indexOf(".") is -1
+      "(if typeof #{name} is 'undefined' then undefined else #{name})"
+    else
+      name.replace /\./g, "?."
+
   # Creates an instrumented node that calls the trace function, passing in the
   # event object.
   createInstrumentedNode: (eventType, options={}) ->
@@ -100,16 +114,11 @@ class CoffeeScriptInstrumenter
     locationObj += " last_line: #{location.last_line + 1},"
     locationObj += " last_column: #{location.last_column + 1} }"
 
-    soakify = (name) ->
-      if name.indexOf(".") is -1
-        "(if typeof #{name} is 'undefined' then undefined else #{name})"
-      else
-        name.replace /\./g, "?."
-
     extra =
       switch eventType
         when "before", "after"
-          "vars: [" + ("{name: '#{name}', value: #{soakify(name)}}" for name in vars) + "]"
+          funcDef = if @isFunctionDef(options.node) then ", functionDef: true" else ""
+          "vars: [" + ("{name: '#{name}', value: #{@soakify(name)} #{funcDef}}" for name in vars) + "]"
         when "enter"
           "vars: [" + ("{name: '#{name}', value: #{name}}" for name in vars) + "]"
         when "leave"
