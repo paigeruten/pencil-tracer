@@ -32,3 +32,7 @@ describe 'CoffeeScriptInstrumenter', ->
       ast.should.have.type 'object'
       ast.constructor.name.should.equal 'Block'
 
+    it 'should listen to the "includeArgsStrings" option', ->
+      js = pencilTracer.instrumentCoffee('', 'f(1, 2, 3)', coffeeScript, includeArgsStrings: true)
+      js.should.match /argsString: '1, 2, 3'/
+

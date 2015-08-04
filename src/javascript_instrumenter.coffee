@@ -47,6 +47,9 @@ class JavaScriptInstrumenter
         closeParens += ")"
     soakified + closeParens
 
+  quoteString: (str) ->
+    str.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n")
+
   createInstrumentedNode: (eventType, options={}) ->
     loc = options.loc ? options.node.loc
 
@@ -73,7 +76,10 @@ class JavaScriptInstrumenter
           "returnOrThrow: #{options.returnOrThrowVar}"
 
     if eventType is "after"
-      extra += ", functionCalls: [" + ("{name: '#{f.name}', value: #{f.tempVar}}" for f in functionCalls) + "]"
+      if @options.includeArgsStrings
+        extra += ", functionCalls: [" + ("{name: '#{f.name}', value: #{f.tempVar}, argsString: '#{@quoteString(f.argsString)}'}" for f in functionCalls) + "]"
+      else
+        extra += ", functionCalls: [" + ("{name: '#{f.name}', value: #{f.tempVar}}" for f in functionCalls) + "]"
 
     eventObj = "{location: #{locationObj}, type: '#{eventType}', #{extra}}"
 
@@ -99,6 +105,7 @@ class JavaScriptInstrumenter
     node = acorn.parse("#{varName} = 0;").body[0]
     node.expression.right = expr
     node.expression.left.pencilTracerGenerated = true
+    node.expression.loc = expr.loc
 
     if asStatement then node else node.expression
 
@@ -149,6 +156,23 @@ class JavaScriptInstrumenter
   findArguments: (funcNode) ->
     (param.name for param in funcNode.params)
 
+  substringByLocation: (loc) ->
+    result = ""
+    for lineNum in [loc.start.line..loc.end.line]
+      result +=
+        if lineNum is loc.start.line and lineNum is loc.end.line
+          @lines[lineNum][loc.start.column...loc.end.column]
+        else if lineNum is loc.start.line
+          @lines[lineNum][loc.start.column..]
+        else if lineNum is loc.end.line
+          @lines[lineNum][...loc.end.column]
+        else
+          @lines[lineNum]
+    result
+
+  argsToString: (argNodes) ->
+    (@substringByLocation(arg.loc) for arg in argNodes).join(", ")
+
   findFunctionCalls: (node, vars=[]) ->
     if node.pencilTracerReturnVar
       name =
@@ -161,7 +185,7 @@ class JavaScriptInstrumenter
         else
           "<anonymous>"
 
-      vars.push {name: name, tempVar: node.pencilTracerReturnVar}
+      vars.push {name: name, tempVar: node.pencilTracerReturnVar, argsString: @argsToString(node.arguments)}
 
     for key of node
       if isArray(node[key])
@@ -281,6 +305,9 @@ class JavaScriptInstrumenter
         child
 
   instrument: (filename, code) ->
+    @lines = code.match(/^.*((\r\n|\n|\r)|$)/gm)
+    @lines.unshift null # Make it easy to use the 1-indexed line numbers acorn gives us.
+
     @undeclaredVars = []
     @referencedVars = []
     ast = acorn.parse code, locations: true, onToken: (token) =>

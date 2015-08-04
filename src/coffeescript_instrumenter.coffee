@@ -96,6 +96,9 @@ class CoffeeScriptInstrumenter
     else
       name.replace /\./g, "?."
 
+  quoteString: (str) ->
+    str.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n")
+
   # Creates an instrumented node that calls the trace function, passing in the
   # event object.
   createInstrumentedNode: (eventType, options={}) ->
@@ -125,7 +128,10 @@ class CoffeeScriptInstrumenter
           "returnOrThrow: #{options.returnOrThrowVar}"
 
     if eventType is "after"
-      extra += ", functionCalls: [" + ("{name: '#{f.name}', value: #{f.tempVar}}" for f in functionCalls) + "]"
+      if @options.includeArgsStrings
+        extra += ", functionCalls: [" + ("{name: '#{f.name}', value: #{f.tempVar}, argsString: '#{@quoteString(f.argsString)}'}" for f in functionCalls) + "]"
+      else
+        extra += ", functionCalls: [" + ("{name: '#{f.name}', value: #{f.tempVar}}" for f in functionCalls) + "]"
 
     eventObj = "{ location: #{locationObj}, type: '#{eventType}', #{extra} }"
 
@@ -202,6 +208,23 @@ class CoffeeScriptInstrumenter
           args.push.apply(args, @findVariables(name))
     args
 
+  substringByLocation: (location) ->
+    result = ""
+    for lineNum in [location.first_line..location.last_line]
+      result +=
+        if lineNum is location.first_line and lineNum is location.last_line
+          @lines[lineNum][location.first_column..location.last_column]
+        else if lineNum is location.first_line
+          @lines[lineNum][location.first_column..]
+        else if lineNum is location.last_line
+          @lines[lineNum][..location.last_column]
+        else
+          @lines[lineNum]
+    result
+
+  argsToString: (argNodes) ->
+    (@substringByLocation(arg.locationData) for arg in argNodes).join(", ")
+
   findFunctionCalls: (node, parent=null, grandparent=null, vars=[]) ->
     if node instanceof @nodeTypes.Call and not (grandparent instanceof @nodeTypes.Op and grandparent.operator is "new")
       # Check for soaks. TODO: support "soaked" function calls.
@@ -224,7 +247,7 @@ class CoffeeScriptInstrumenter
             name = node.variable.base.value
 
         node.pencilTracerReturnVar = @temporaryVariable("returnVar")
-        vars.push {name: name, tempVar: node.pencilTracerReturnVar}
+        vars.push {name: name, tempVar: node.pencilTracerReturnVar, argsString: @argsToString(node.args)}
 
     node.eachChild (child) =>
       skip = child instanceof @nodeTypes.Block and node not instanceof @nodeTypes.Parens
@@ -521,6 +544,8 @@ class CoffeeScriptInstrumenter
       header: @options.header
       sourceMap: @options.sourceMap
       literate: @options.literate
+
+    @lines = code.match(/^.*((\r\n|\n|\r)|$)/gm)
 
     # Get a list of referenced variables so that generated variables won't get
     # the same name.

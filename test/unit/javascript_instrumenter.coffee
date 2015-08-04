@@ -19,3 +19,12 @@ describe 'JavaScriptInstrumenter', ->
       js.should.match /myTraceFunc/
       js.should.not.match /pencilTrace/
 
+    it 'should listen to the "ast" option', ->
+      ast = pencilTracer.instrumentJs('', 'var x = 3;', ast: true)
+      ast.should.have.type 'object'
+      ast.type.should.equal 'Program'
+
+    it 'should listen to the "includeArgsStrings" option', ->
+      js = pencilTracer.instrumentJs('', 'f(1, 2, 3);', includeArgsStrings: true)
+      js.should.match /argsString: '1, 2, 3'/
+
