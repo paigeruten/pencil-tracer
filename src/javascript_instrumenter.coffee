@@ -232,6 +232,12 @@ class JavaScriptInstrumenter
     if node.type in ["CallExpression", "NewExpression"]
       node.pencilTracerReturnVar = @temporaryVariable("returnVar", true)
 
+    if node.type is "ForStatement" and not node.test and not node.update
+      node.test =
+        type: "Literal"
+        value: true
+        loc: node.loc
+
     @mapChildren node, (child) =>
       @instrumentTree(child, node, returnOrThrowVar)
       if @shouldInstrumentWithBlock(child, node)

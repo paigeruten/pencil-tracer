@@ -1113,6 +1113,13 @@
       if ((ref1 = node.type) === "CallExpression" || ref1 === "NewExpression") {
         node.pencilTracerReturnVar = this.temporaryVariable("returnVar", true);
       }
+      if (node.type === "ForStatement" && !node.test && !node.update) {
+        node.test = {
+          type: "Literal",
+          value: true,
+          loc: node.loc
+        };
+      }
       return this.mapChildren(node, (function(_this) {
         return function(child) {
           var newBlock, ref2, ref3, ref4, tryStatement, varDecl;
