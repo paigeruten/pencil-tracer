@@ -121,7 +121,7 @@ varsEq = (expected, actual) ->
       expectedType = expectedValue.slice(1, expectedValue.length - 1)
       return false if typeof actualValue isnt expectedType
     else
-      expectedValue = eval(expectedValue)
+      expectedValue = (0;eval)(expectedValue)
       return false if not isEqual(expectedValue, actualValue)
 
   true

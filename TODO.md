@@ -9,7 +9,6 @@
     * Source mapping
     * Find a test suite for JavaScript
 * New features
-    * Option to include the arguments when tracking function calls
     * Tracked variables should have id's or scope id's, to know whether two variables with the same name are the same variable or just in different scopes
     * Multiple function calls to the same function being tracked in the same event should be able to be differentiated. Maybe include their locations? Or at least guarantee they're tracked in the same order as they appear in the code.
 * Documentation
