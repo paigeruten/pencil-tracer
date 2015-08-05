@@ -19,6 +19,12 @@ describe 'JavaScriptInstrumenter', ->
       js.should.match /myTraceFunc/
       js.should.not.match /pencilTrace/
 
+    it 'should listen to the "sourceMap" option', ->
+      result = pencilTracer.instrumentJs('', 'var x = 3;', sourceMap: true)
+      result.should.have.type 'object'
+      result.should.have.ownProperty 'code'
+      result.should.have.ownProperty 'map'
+
     it 'should listen to the "ast" option', ->
       ast = pencilTracer.instrumentJs('', 'var x = 3;', ast: true)
       ast.should.have.type 'object'

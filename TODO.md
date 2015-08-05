@@ -6,7 +6,6 @@
     * Track soaked functions (e.g. `func?()`, `obj?.a().b()`)
     * Rewrite Iced parts to instrument before the Iced AST transform
 * JavaScript
-    * Source mapping
     * Find a test suite for JavaScript
 * New features
     * Tracked variables should have id's or scope id's, to know whether two variables with the same name are the same variable or just in different scopes

@@ -316,7 +316,7 @@ class JavaScriptInstrumenter
 
     @undeclaredVars = []
     @referencedVars = []
-    ast = acorn.parse code, locations: true, onToken: (token) =>
+    ast = acorn.parse code, locations: true, sourceFile: filename, onToken: (token) =>
       if token.type.label is "name" and @referencedVars.indexOf(token.value) is -1
         @referencedVars.push token.value
 
@@ -334,7 +334,13 @@ class JavaScriptInstrumenter
 
     return ast if @options.ast
 
-    escodegen.generate(ast)
+    if @options.sourceMap
+      filename = "untitled.js" if typeof filename isnt "string" or filename.length is 0
+      result = escodegen.generate(ast, sourceMap: filename, sourceMapWithCode: true)
+      result.map = result.map.toString()
+      result
+    else
+      escodegen.generate(ast)
 
 exports.instrumentJs = (filename, code, options = {}) ->
   instrumenter = new JavaScriptInstrumenter(options)

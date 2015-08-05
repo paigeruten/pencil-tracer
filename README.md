@@ -45,6 +45,7 @@ or `leave` when a function is entered or left.
 * `traceFunc`: the function that will be called for each event (default: `'pencilTrace'`).
 * `ast`: if true, returns the instrumented AST instead of the compiled JS.
 * `bare` (CoffeeScript only): if true, tells coffeescript not to wrap the output in a top-level function.
+* `sourceMap`: if true, returns a source map as well as the instrumented code.
 * `includeArgsStrings`: if true, each tracked function call will include a string containing the arguments passed to the function
 
 `pencil-tracer.js` is a browserified (UMD) version of the library.

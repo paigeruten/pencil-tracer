@@ -27,6 +27,12 @@ describe 'CoffeeScriptInstrumenter', ->
       js.should.match /function\(\)/
       jsBare.should.not.match /function\(\)/
 
+    it 'should listen to the "sourceMap" option', ->
+      result = pencilTracer.instrumentCoffee('', 'x = 3', coffeeScript, sourceMap: true)
+      result.should.have.type 'object'
+      result.should.have.ownProperty 'code'
+      result.should.have.ownProperty 'map'
+
     it 'should listen to the "ast" option', ->
       ast = pencilTracer.instrumentCoffee('', 'x = 3', coffeeScript, ast: true)
       ast.should.have.type 'object'

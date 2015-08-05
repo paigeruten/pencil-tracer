@@ -335,10 +335,8 @@ class CoffeeScriptInstrumenter
       js = "// #{header}\n#{js}"
 
     if compileOptions.sourceMap
-      answer = {js}
-      answer.sourceMap = map
-      answer.v3SourceMap = map.generate(compileOptions, originalCode)
-      answer
+      code: js
+      map: map.generate(compileOptions, originalCode)
     else
       js
 
