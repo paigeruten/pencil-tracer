@@ -668,7 +668,7 @@
       }
     };
 
-    CoffeeScriptInstrumenter.prototype.instrument = function(filename, code) {
+    CoffeeScriptInstrumenter.prototype.instrument = function(code) {
       var ast, csOptions, result, token;
       csOptions = {
         runtime: "inline",
@@ -704,13 +704,13 @@
 
   })();
 
-  exports.instrumentCoffee = function(filename, code, coffee, options) {
+  exports.instrumentCoffee = function(code, coffee, options) {
     var instrumenter;
     if (options == null) {
       options = {};
     }
     instrumenter = new CoffeeScriptInstrumenter(coffee, options);
-    return instrumenter.instrument(filename, code);
+    return instrumenter.instrument(code);
   };
 
 }).call(this);
@@ -1222,7 +1222,7 @@
       })(this));
     };
 
-    JavaScriptInstrumenter.prototype.instrument = function(filename, code) {
+    JavaScriptInstrumenter.prototype.instrument = function(code) {
       var ast, name, result, tempVarsDeclaration;
       this.lines = code.match(/^.*((\r\n|\n|\r)|$)/gm);
       this.lines.unshift(null);
@@ -1230,7 +1230,6 @@
       this.referencedVars = [];
       ast = acorn.parse(code, {
         locations: true,
-        sourceFile: filename,
         onToken: (function(_this) {
           return function(token) {
             if (token.type.label === "name" && _this.referencedVars.indexOf(token.value) === -1) {
@@ -1269,11 +1268,8 @@
         return ast;
       }
       if (this.options.sourceMap) {
-        if (typeof filename !== "string" || filename.length === 0) {
-          filename = "untitled.js";
-        }
         result = escodegen.generate(ast, {
-          sourceMap: filename,
+          sourceMap: "untitled.js",
           sourceMapWithCode: true
         });
         result.map = result.map.toString();
@@ -1287,13 +1283,13 @@
 
   })();
 
-  exports.instrumentJs = function(filename, code, options) {
+  exports.instrumentJs = function(code, options) {
     var instrumenter;
     if (options == null) {
       options = {};
     }
     instrumenter = new JavaScriptInstrumenter(options);
-    return instrumenter.instrument(filename, code);
+    return instrumenter.instrument(code);
   };
 
 }).call(this);

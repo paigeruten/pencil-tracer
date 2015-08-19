@@ -121,7 +121,7 @@ runTests = (CoffeeScript, testsDir) ->
       mainModule.filename = fs.realpathSync filename
       mainModule.moduleCache and= {}
       mainModule.paths = require("module")._nodeModulePaths fs.realpathSync(testsDir)
-      code = instrumentCoffee filename, code.toString(), CoffeeScript, { literate: literate }
+      code = instrumentCoffee code.toString(), CoffeeScript, { literate: literate }
       mainModule._compile code, mainModule.filename
     catch error
       console.log error

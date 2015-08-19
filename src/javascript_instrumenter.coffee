@@ -448,7 +448,7 @@ class JavaScriptInstrumenter
         child
 
   # Instruments a JavaScript program.
-  instrument: (filename, code) ->
+  instrument: (code) ->
     # Store the lines of the program in an array, to be used by
     # @substringByLocation().
     @lines = code.match(/^.*((\r\n|\n|\r)|$)/gm)
@@ -462,7 +462,7 @@ class JavaScriptInstrumenter
     @referencedVars = []
 
     # Parse the input program into an AST.
-    ast = acorn.parse code, locations: true, sourceFile: filename, onToken: (token) =>
+    ast = acorn.parse code, locations: true, onToken: (token) =>
       # Append each "name" token to @referencedVars.
       if token.type.label is "name" and @referencedVars.indexOf(token.value) is -1
         @referencedVars.push token.value
@@ -489,18 +489,13 @@ class JavaScriptInstrumenter
     # Generate JavaScript from the instrumented AST using escodegen, optionally
     # including a source map.
     if @options.sourceMap
-      filename = "untitled.js" if typeof filename isnt "string" or filename.length is 0
-      result = escodegen.generate(ast, sourceMap: filename, sourceMapWithCode: true)
+      result = escodegen.generate(ast, sourceMap: "untitled.js", sourceMapWithCode: true)
       result.map = result.map.toString()
       result
     else
       escodegen.generate(ast)
 
 # Instruments a JavaScript program.
-#
-# Arguments:
-#   * `filename`: the name of source file being instrumented.
-#   * `code`: the JavaScript code to instrument.
 #
 # Options:
 #   * `traceFunc`: the function that will be called for each event.
@@ -512,7 +507,7 @@ class JavaScriptInstrumenter
 #     properties. (Default: false)
 #   * `includeArgsStrings`: if true, each tracked function call will include a
 #     string containing the arguments passed to the function. (Default: false)
-exports.instrumentJs = (filename, code, options = {}) ->
+exports.instrumentJs = (code, options = {}) ->
   instrumenter = new JavaScriptInstrumenter(options)
-  instrumenter.instrument filename, code
+  instrumenter.instrument code
 

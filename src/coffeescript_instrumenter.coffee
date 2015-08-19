@@ -707,7 +707,7 @@ class CoffeeScriptInstrumenter
 
   # Instruments some CoffeeScript code, compiles to JavaScript, and returns the
   # JavaScript code.
-  instrument: (filename, code) ->
+  instrument: (code) ->
     # Options to pass to the CoffeeScript compiler.
     csOptions =
       runtime: "inline" # for Iced CoffeeScript, includes the runtime in the output
@@ -747,8 +747,6 @@ class CoffeeScriptInstrumenter
 # Instruments a CoffeeScript program, returning compiled JavaScript.
 #
 # Arguments:
-#   * `filename`: the name of source file being instrumented. This is passed to
-#     the CoffeeScript compiler when compiling to JavaScript.
 #   * `code`: the CoffeeScript code to instrument.
 #   * `coffee`: the CoffeeScript compiler to use. This allows you to use a
 #     particular version of CoffeeScript, including Iced CoffeeScript.
@@ -765,7 +763,7 @@ class CoffeeScriptInstrumenter
 #     properties. (Default: false)
 #   * `includeArgsStrings`: if true, each tracked function call will include a
 #     string containing the arguments passed to the function. (Default: false)
-exports.instrumentCoffee = (filename, code, coffee, options = {}) ->
+exports.instrumentCoffee = (code, coffee, options = {}) ->
   instrumenter = new CoffeeScriptInstrumenter(coffee, options)
-  instrumenter.instrument filename, code
+  instrumenter.instrument code
 

@@ -48,9 +48,9 @@ task "instrument", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    process.stdout.write instrumentCoffee(options.file, code, coffee, bare: options.bare, includeArgsStrings: options.args)
+    process.stdout.write instrumentCoffee(code, coffee, bare: options.bare, includeArgsStrings: options.args)
   else if /\.js$/.test options.file
-    process.stdout.write instrumentJs(options.file, code, includeArgsStrings: options.args)
+    process.stdout.write instrumentJs(code, includeArgsStrings: options.args)
   else
     console.log "Error: file must end in .js or .coffee."
     process.exit 1
@@ -59,9 +59,9 @@ task "ast", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    process.stdout.write instrumentCoffee(options.file, code, coffee, ast: true, bare: options.bare, includeArgsStrings: options.args).toString()
+    process.stdout.write instrumentCoffee(code, coffee, ast: true, bare: options.bare, includeArgsStrings: options.args).toString()
   else if /\.js$/.test options.file
-    process.stdout.write util.inspect(instrumentJs(options.file, code, ast: true, includeArgsStrings: options.args), showHidden: false, depth: null)
+    process.stdout.write util.inspect(instrumentJs(code, ast: true, includeArgsStrings: options.args), showHidden: false, depth: null)
   else
     console.log "Error: file must end in .js or .coffee."
     process.exit 1
@@ -70,9 +70,9 @@ task "trace", (options) ->
   code = fs.readFileSync options.file, "utf-8"
   if /\.coffee$/.test options.file
     coffee = if options.iced then require("iced-coffee-script") else require("coffee-script")
-    code = instrumentCoffee(options.file, code, coffee, bare: options.bare, includeArgsStrings: options.args)
+    code = instrumentCoffee(code, coffee, bare: options.bare, includeArgsStrings: options.args)
   else if /\.js$/.test options.file
-    code = instrumentJs(options.file, code, includeArgsStrings: options.args)
+    code = instrumentJs(code, includeArgsStrings: options.args)
   else
     console.log "Error: file must end in .js or .coffee."
     process.exit 1

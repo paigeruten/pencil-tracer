@@ -1,6 +1,12 @@
 # pencil-tracer [![Build Status](https://travis-ci.org/yjerem/pencil-tracer.svg?branch=master)](https://travis-ci.org/yjerem/pencil-tracer)
 
-`pencil-tracer` is a library that takes a JavaScript or CoffeeScript program as input, and outputs instrumented JavaScript that records a line-by-line trace of the program's execution when it runs.
+`pencil-tracer` is a library that takes a JavaScript or CoffeeScript program as
+input, and outputs instrumented JavaScript that records a line-by-line trace of
+the program's execution when it runs.
+
+This library was developed for [Pencil Code](https://pencilcode.net/) as a
+[GSoC 2015](https://www.google-melange.com/gsoc/homepage/google/gsoc2015)
+project.
 
 ## Install
 
@@ -13,16 +19,18 @@
 
 ## Usage
 
-    var pencilTracer = require('pencil-tracer');
+```javascript
+var pencilTracer = require('pencil-tracer');
 
-    // javascript
-    var output = pencilTracer.instrumentJs('myfile.js', 'var x = 3;');
+// javascript
+var output = pencilTracer.instrumentJs('var x = 3;');
 
-    // coffeescript
-    var coffeeScript = require('coffee-script');
-    var output = pencilTracer.instrumentCoffee('myfile.coffee', 'x = 3', coffeeScript);
+// coffeescript
+var coffeeScript = require('coffee-script');
+var output = pencilTracer.instrumentCoffee('x = 3', coffeeScript);
+```
 
-Two functions are exported: `instrumentJs` and `instrumentCoffee`. `instrumentJs` takes a file name, some code, and an options object. `instrumentCoffee` takes the same arguments, as well as a CoffeeScript compiler as the third argument (this lets you use a specific version of CoffeeScript, including Iced CoffeeScript).
+Two functions are exported: `instrumentJs` and `instrumentCoffee`. `instrumentJs` takes some code and an options object. `instrumentCoffee` takes the same arguments, as well as a CoffeeScript compiler as the second argument (this lets you use a specific version of CoffeeScript, including Iced CoffeeScript).
 
 Both functions return a string containing the instrumented code. When run, the instrumented code will make a call to `pencilTrace()` for each line, passing it an object like this:
 
@@ -37,8 +45,8 @@ Both functions return a string containing the instrumented code. When run, the i
       vars: [{ name: 'x', value: 3 }]
     }
 
-`type` is `before` or `after` for normal executed code. It can also be `enter`
-or `leave` when a function is entered or left.
+`type` is `'before'` or `'after'` for normal executed code. It can also be `'enter'`
+or `'leave'` when a function is entered or left.
 
 `instrumentJs` and `instrumentCoffee` take the following options:
 
