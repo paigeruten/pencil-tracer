@@ -17,6 +17,16 @@ project.
     $ cake build
     $ cake test
 
+## Try it
+
+To quickly try it out, clone this repository and run these `cake` tasks.
+
+    $ cake -f test/traces/js/simple.js instrument
+    $ cake -f test/traces/js/simple.js trace
+
+The first task instruments the given file and shows you the output. The second
+task does a trace on the given file and shows you the trace.
+
 ## Usage
 
 ```javascript
@@ -30,37 +40,346 @@ var coffeeScript = require('coffee-script');
 var output = pencilTracer.instrumentCoffee('x = 3', coffeeScript);
 ```
 
-Two functions are exported: `instrumentJs` and `instrumentCoffee`. `instrumentJs` takes some code and an options object. `instrumentCoffee` takes the same arguments, as well as a CoffeeScript compiler as the second argument (this lets you use a specific version of CoffeeScript, including Iced CoffeeScript).
+Two functions are exported: `instrumentJs` and `instrumentCoffee`.
+`instrumentJs` takes some code and an options object. `instrumentCoffee` takes
+the same arguments, as well as a CoffeeScript compiler as the second argument
+(this lets you use a specific version of CoffeeScript, including Iced
+CoffeeScript).
 
-Both functions return a string containing the instrumented code. When run, the instrumented code will make a call to `pencilTrace()` for each line, passing it an object like this:
+Both functions return a string containing the instrumented code. When run, the
+instrumented code will make a call to `pencilTrace()` for each line, passing it
+an object like this:
 
-    {
-      type: 'after',
-      location: {
-        first_line: 1,
-        first_column: 1,
-        last_line: 1,
-        last_column: 5
-      },
-      vars: [{ name: 'x', value: 3 }]
-    }
+```javascript
+{
+  type: 'after',
+  location: {
+    first_line: 1,
+    first_column: 1,
+    last_line: 1,
+    last_column: 5
+  },
+  vars: [{ name: 'x', value: 3 }]
+}
+```
 
-`type` is `'before'` or `'after'` for normal executed code. It can also be `'enter'`
-or `'leave'` when a function is entered or left.
+`type` is `'before'` or `'after'` for normal executed code. It can also be
+`'enter'` or `'leave'` when a function is entered or left.
 
 `instrumentJs` and `instrumentCoffee` take the following options:
 
-* `traceFunc`: the function that will be called for each event (default: `'pencilTrace'`).
+* `traceFunc`: the function that will be called for each event (default:
+  `'pencilTrace'`).
 * `ast`: if true, returns the instrumented AST instead of the compiled JS.
-* `bare` (CoffeeScript only): if true, tells coffeescript not to wrap the output in a top-level function.
+* `bare` (CoffeeScript only): if true, tells coffeescript not to wrap the
+  output in a top-level function.
 * `sourceMap`: if true, returns a source map as well as the instrumented code.
-* `includeArgsStrings`: if true, each tracked function call will include a string containing the arguments passed to the function
+* `includeArgsStrings`: if true, each tracked function call will include a
+  string containing the arguments passed to the function.
 
 `pencil-tracer.js` is a browserified (UMD) version of the library.
 
-## Documentation
+## Obtaining a trace
 
-### Full Example
+All `pencil-tracer` gives you is a string of instrumented JavaScript. It is up
+to you to run that code and collect the events. Here is an example program that
+does that, using `Contextify` to the run the instrumented code in a sandbox.
+
+```javascript
+var pencilTracer = require('pencil-tracer');
+var Contextify = require('contextify');
+
+var code = pencilTracer.instrumentJs('var x = 3;');
+
+var sandbox = {
+  pencilTrace: function(event) {
+    sandbox.pencilTraceEvents.push(event);
+  },
+  pencilTraceEvents: []
+};
+
+Contextify(sandbox);
+sandbox.run(code);
+
+console.log(sandbox.pencilTraceEvents);
+```
+
+## What gets traced
+
+For the most part, every ordinary statement gets instrumented with `'before'`
+and `'after'` events. For example,
+
+```javascript
+var x;
+x = 1;
+x++;
+```
+
+This program would be instrumented like so:
+
+```javascript
+<var x;>
+<x = 1;>
+<x++;>
+```
+
+Where `<` is shorthand for `pencilTrace('before', ...);` and `>` is shorthand
+for `pencilTrace('after', ...);`. I'll continue using this shorthand for the
+rest of this section.
+
+### Functions
+
+Function declarations get instrumented like an ordinary statement.
+
+```javascript
+// javascript
+<function square(x) {
+  return x * x;
+}>
+```
+
+### Empty statements
+
+In JavaScript, a semicolon by itself is called an empty statement. Each empty
+statement gets instrumented like any other statement.
+
+```javascript
+// javascript
+<;>
+```
+
+### `if` and `unless` statements
+
+The condition expression is instrumented in `if` and `unless` statements.
+
+```javascript
+// javascript
+if (<false>) {
+  ...
+} else if (<true>) {
+  ...
+} else {
+  ...
+}
+```
+
+```coffeescript
+# coffeescript
+if <false>
+  ...
+else if <true>
+  ...
+else
+  ...
+
+<i += 1> unless <false>
+```
+
+### `with` statements
+
+The object expression is instrumented.
+
+```javascript
+// javascript
+with (<obj>) {
+  ...
+}
+```
+
+### `switch` statements
+
+The expression being switched on is instrumented, and each case expression is
+instrumented.
+
+```javascript
+// javascript
+switch (<3>) {
+  case <1>:
+    ...
+  case <2>:
+    ...
+  case <3>:
+    ...
+  default:
+    ...
+}
+```
+
+```coffeescript
+# coffeescript
+switch <3>
+  when <1> then ...
+  when <2>, <3> then ...
+  else ...
+```
+
+### `return` and `throw` statements
+
+The expression being returned or thrown is instrumented.
+
+```javascript
+// javascript
+return <true>;
+throw <"error!">;
+```
+
+```coffeescript
+# coffeescript
+return <true>
+throw <"error!">
+```
+
+### `try` statements
+
+Only the error variable of the `catch` clause is instrumented, if it exists.
+
+```javascript
+// javascript
+try {
+  ...
+} catch (<err>) {
+  ...
+} finally {
+  ...
+}
+```
+
+```coffeescript
+# coffeescript
+try
+  ...
+catch <err>
+  ...
+finally
+  ...
+```
+
+### `while` loops
+
+The loop condition is instrumented.
+
+```javascript
+// javascript
+while (<true>) {
+  ...
+}
+```
+
+```coffeescript
+# coffeescript
+while <true>
+  ...
+```
+
+Note: the `loop` keyword in CoffeeScript is syntax sugar for `while true`, so
+it will be instrumented in the same way.
+
+### `do..while` loops
+
+The loop condition is instrumented.
+
+```javascript
+// javascript
+do {
+  ...
+} while (<true>);
+```
+
+### `for` loops
+
+Each of the three expressions in the head of the `for` loop is instrumented, if
+they exist.
+
+```javascript
+// javascript
+for (<var i = 0>; <i != 3>; <i++>) {
+  ...
+}
+```
+
+In the case of a `for (;;) { ... }` loop, the middle conditional expression is
+instrumented.
+
+```javascript
+// javascript
+for (;<>;) {
+  ...
+}
+```
+
+### `for in` loops
+
+The object being iterated over and the variables being assigned to are both
+instrumented.
+
+```javascript
+// javascript
+for (<key> in <obj>) {
+  ...
+}
+```
+
+```coffeescript
+# coffeescript
+for <key, value> of <obj>
+  ...
+for <elem, idx> in <ary>
+  ...
+```
+
+### Sequence expressions
+
+The comma operator in JavaScript is known as a sequence expression, and even
+though it can be used to put multiple statement-like expressions in a single
+expression, the subexpressions are not instrumented in any special way.
+
+```javascript
+// javascript
+<x = (i++, i++, i);>
+```
+
+```coffeescript
+# coffeescript
+<x = (i += 1; i += 1; i)>
+```
+
+### Classes
+
+The head of the class is instrumented, and each method definition is
+instrumented.
+
+```coffeescript
+# coffeescript
+<class Person extends Entity>
+  <constructor: (@firstName, @lastName) ->
+    ...>
+
+  <fullName: ->
+    ...>
+```
+
+### Loop guards
+
+CoffeeScript allows `when` clauses on its loops, which act as guards. If a loop
+has a guard, the guard expression will be instrumented.
+
+```coffeescript
+# coffeescript
+for <n> in <[1, 2, 3, 4, 5]> when <n % 2 is 0>
+  ...
+```
+
+### List comprehensions
+
+CoffeeScript's list comprehensions are just ordinary loops, which were covered
+above, but it may helpful to show an example of how they are instrumented.
+
+```coffeescript
+# coffeescript
+<odd_squares = (<n * n> for <n> in <[1, 2, 3, 4, 5]> when <(n * n) % 2 is 1>)>
+```
+
+## Full Example
 
 A program's execution can be traced by collecting the events that are triggered
 by the instrumented code. This simple program demonstrates the four types of
@@ -136,7 +455,7 @@ statement), and each instrumented function will trigger an `'enter`' event
 (with argument values) and a `'leave'` event (with either the return value or
 the the thrown error in the case of an exception).
 
-### Events
+## Events
 
 Every event has `type` and `location` properties. `location` is the start and
 end location of the original code that this event is associated with.
@@ -154,12 +473,11 @@ end location of the original code that this event is associated with.
 }
 ```
 
-#### `'before'` Event
+### `'before'` Event
 
 Triggered before each instrumented statement. A `vars` property contains the
 variables and values used in the original code that this event is associated
-with. The `vars` object has variable names for keys, and variable values as
-values.
+with. Each object in `vars` has a `name` property and a `value` property.
 
 ```javascript
 {
@@ -169,7 +487,7 @@ values.
 }
 ```
 
-#### `'after'` Event
+### `'after'` Event
 
 For every `'before'` event, there is an `'after'` event with the same
 `location` and the same variable names in `vars`, but if any variables were
@@ -186,7 +504,7 @@ property containing names and values of function calls used in the code.
 }
 ```
 
-#### `'enter'` Event
+### `'enter'` Event
 
 Triggered at the beginning of a body of a function. The `vars` property contains
 argument names and values. The `location` will give the start and end of the
@@ -200,7 +518,7 @@ entire function body.
 }
 ```
 
-#### `'leave'` Event
+### `'leave'` Event
 
 Triggered after a function returns or throws an error. The `returnOrThrow`
 property contains an object with two properties: `type` tells you whether the
@@ -219,7 +537,7 @@ the `'enter'` event's `location`.
 }
 ```
 
-### Blocks
+## Blocks
 
 Statements containing blocks, such as if statements and loops, are handled
 differently than ordinary statements. For example, consider this while loop:
@@ -255,6 +573,4 @@ while (pencilTrace({type: 'before', ...}), _temp = x--, pencilTrace({type: 'afte
 Here we instrument the conditional expression of the while loop. This way we
 can show that the condition is being executed on every iteration, and we can
 track how the value `x` is being changed.
-
-If statements, switch statements, and for loops are instrumented similarly.
 
